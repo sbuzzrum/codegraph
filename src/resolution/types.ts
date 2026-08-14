@@ -43,6 +43,13 @@ export interface ResolvedRef {
   confidence: number;
   /** How it was resolved */
   resolvedBy: 'exact-match' | 'import' | 'qualified-name' | 'framework' | 'fuzzy' | 'instance-method' | 'file-path' | 'function-ref';
+  /**
+   * Extra detail to merge into the edge's metadata. Lets a language resolver
+   * record HOW it decided — which scope rule applied, what the reference
+   * really was — without every such fact needing its own column. Merged under
+   * the standard keys in `createEdges`, never overwriting them.
+   */
+  metadata?: Record<string, unknown>;
 }
 
 /**

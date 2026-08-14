@@ -1,7 +1,6 @@
 {
   "description": "Control_Event names bind the control to its handler",
-  "status": "known-gap",
-  "gap": "no event model: Control_Event handlers are unlinked methods (prompt §13)",
+  "status": "pass",
   "expect": {
     "nodes": [
       {

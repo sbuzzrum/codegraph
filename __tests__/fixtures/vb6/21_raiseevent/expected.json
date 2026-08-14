@@ -1,7 +1,6 @@
 {
   "description": "RaiseEvent links the raising procedure to the event it raises, and says so",
-  "status": "known-gap",
-  "gap": "the edge exists but its provenance is dropped: unresolved_refs has no metadata column, so the extractor hint never reaches the edge (prompt §14)",
+  "status": "pass",
   "expect": {
     "edges": [
       {

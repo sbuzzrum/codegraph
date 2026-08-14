@@ -1,7 +1,6 @@
 {
   "description": "a Private Sub is callable inside its module and invisible outside it",
-  "status": "known-gap",
-  "gap": "module-private scope is not enforced: the generic name matcher links ModB.Outsider to ModA.Internal (prompt §9, §21)",
+  "status": "pass",
   "expect": {
     "nodes": [
       {

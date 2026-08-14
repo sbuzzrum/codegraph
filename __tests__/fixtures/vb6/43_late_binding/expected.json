@@ -1,7 +1,6 @@
 {
   "description": "a call on an Object variable must not be bound to a same-named member of an unrelated class",
-  "status": "known-gap",
-  "gap": "late-bound member calls are name-matched to any class member with that name, presenting a guess as a static call (prompt §15, §21)",
+  "status": "pass",
   "forbid": {
     "edges": [
       {

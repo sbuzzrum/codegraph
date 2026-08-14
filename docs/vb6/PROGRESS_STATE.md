@@ -3,9 +3,10 @@
 > Documento vivo. Fonte autoritativa dei requisiti: `PROMPT_CODEGRAPH_VB6_FORK_PERSONALE.md`
 > (nella dir padre del repo). Questo file traccia **piano**, **decisioni** e **stato**.
 
-Ultimo aggiornamento: 2026-08-14 — fase corrente: **4** (suite di conformità
-completa e verde; extractor validato, misurato e **corretto** — E1–E12 chiusi;
-**manca** l'intero resolver VB6 — scope, eventi, provenance: R1–R6).
+Ultimo aggiornamento: 2026-08-14 — fase corrente: **5–6** (motore VB6 completo:
+extractor + resolver + binding eventi. Suite di conformità **55/55**, 0 gap,
+0 falsi positivi, 0 regressioni. Restano: MCP/metriche §20 e la documentazione
+finale con l'assessment del fork).
 
 Committato e pushato su `origin/main`:
 - `2d59953` — `docs(vb6): architecture audit, phased plan and implementation decisions`
@@ -175,18 +176,46 @@ irrisolvibili scendono da 44 a 9 — tutte funzioni/tipi intrinseci VB6 o simbol
 
 Effetto sulla suite: **29 → 44 fixture pass**, gap 26 → 11, falsi positivi 10 → 4, falsi negativi 30 → 13.
 
-### Fase 4 — Resolver, scope, eventi, COM *(prossima)*
+### Fase 4 — Resolver, scope, eventi, COM *(completa)*
 
-#### Difetti misurati della resolution (stato: nessun resolver VB6, si usa il name-matcher generico)
+#### Difetti della resolution — **tutti corretti** (2026-08-14)
 
-| # | Difetto | Effetto | Fixture |
+| # | Difetto | Correzione | Fixture |
 |---|---|---|---|
-| R1 | nessuno scope: si risolve per uguaglianza di nome | `Private` raggiunta da un altro modulo; con due omonimi private ne sceglie una **arbitrariamente** invece di lasciare unresolved | 02, 31, 51 |
-| R2 | membri di classe raggiungibili con nome non qualificato dall'esterno | edge impossibile in VB6 | 31 |
-| R3 | chiamate late-bound (`Dim o As Object`) legate a un membro omonimo qualsiasi | euristica presentata come call statica | 43 |
-| R4 | nessun binding di eventi (controlli, Form, `WithEvents`, OCX) | §13 completamente scoperto | 16, 17, 22, 23, 39, 52 |
-| R5 | `provenance` sempre `NULL` sugli edge VB6 | §14 non soddisfatto | 21 |
-| R6 | `UnresolvedReference.metadata` non sopravvive al giro in DB (**`unresolved_refs` non ha colonna `metadata`**) | gli hint dell'extractor (`raises_event`, `member_call`, `ocx_type`) non arrivano mai all'edge | 21 |
+| R1 | nessuno scope: si risolveva per uguaglianza di nome | `Vb6Resolver` applica le regole VB6; in caso di ambiguità **nessun edge** | 02, 31, 51 |
+| R2 | membri di classe raggiungibili non qualificati dall'esterno | lo scope di progetto ammette solo i `Public` dei moduli standard (`.bas`) | 31 |
+| R3 | chiamate late-bound legate a un membro omonimo qualsiasi | un qualificatore di tipo `Object`/`Variant` non ha target statico → unresolved | 43 |
+| R4 | nessun binding di eventi | `vb6-event-synthesizer`: produttore → handler per controlli, Form, `WithEvents`, OCX | 16, 17, 22, 23, 39, 52 |
+| R5 | `provenance` assente sugli edge VB6 | binding eventi marcati `heuristic`; gli edge risolti portano `metadata.scope` e il qualificatore | 21 |
+| R6 | il metadata dell'extractor non sopravvive al giro in DB | il qualificatore viaggia in `candidates` (già persistito); il resto si deduce dal grafo | 21 |
+
+**Nessuna migrazione di schema.** `unresolved_refs.candidates` significa già "nomi qualificati a cui il
+riferimento potrebbe risolversi": l'extractor ci scrive `["c.Compute"]` e il resolver ne ricava il
+qualificatore. Che un riferimento sia un `RaiseEvent` si deduce dal target (nodo `vb6:event`); che una
+chiamata sia late-bound, dal `returnType` della variabile (`Object`/`Variant`).
+
+**Bug del core trovato strada facendo:** `candidates` veniva scritto e riletto dal DB, ma **tre**
+conversioni `UnresolvedReference → UnresolvedRef` in `src/resolution/index.ts` lo lasciavano cadere
+prima di `resolveOne`. Nessun'altra lingua lo legge, quindi il campo era di fatto morto; ora è
+propagato — modifica additiva, nessun effetto sulle altre lingue.
+
+Il flusso end-to-end richiesto dal §13 è ora percorribile nel graph:
+
+```
+ReadBarcode --references(raises_event)--> ItemRead --calls(withevents)--> mReader_ItemRead
+```
+
+Componenti aggiunti:
+- `src/resolution/vb6-resolver.ts` — scope VB6, chiamate qualificate, late binding, ambiguità → unresolved.
+  Agganciato in `resolveOne` **senza fallthrough**: se le regole VB6 non determinano un target, la ref
+  resta unresolved invece di finire al name-matcher generico.
+- `src/resolution/vb6-event-synthesizer.ts` — binding eventi per convenzione di nome, con `provenance:
+  'heuristic'` e `metadata.binding`. Un handler si lega solo se il produttore esiste davvero nello stesso
+  file: è ciò che impedisce a `IWorker_Run` (metodo di `Implements`) di essere scambiato per un handler.
+
+Lavoro residuo di fase (non bloccante, nessuna fixture lo copre): `Friend` è trattato come `Public`
+(corretto entro il singolo progetto), i rami `#If` restano tutti nel graph senza valutazione, e le
+type library COM esterne non sono lette — i tipi dei controlli VB standard restano quindi unresolved.
 
 - [ ] Scope resolution (§9): procedure/module/class/form/project scope, Public/Private/Friend/Static,
       qualified vs unqualified, moduli globali, omonimi in scope diversi.
@@ -246,4 +275,11 @@ Effetto sulla suite: **29 → 44 fixture pass**, gap 26 → 11, falsi positivi 1
   `provenance` non viene impostata dagli edge statici: il dominio è chiuso (`tree-sitter|scip|heuristic`)
   e la convenzione del repo è che solo i synthesizer la marchino — `VB6_SEMANTIC_MODEL.md` aggiornato.
   Suite: **44 pass / 11 gap / 0 fail**; nessuna regressione sulle altre lingue.
-  **Prossimo passo:** Fase 4 — resolver VB6 (scope R1–R3, eventi R4, provenance persistita R5–R6).
+- 2026-08-14 (resolver): chiusi **R1–R6**. Aggiunti `vb6-resolver.ts` (scope) e
+  `vb6-event-synthesizer.ts` (binding eventi). Il qualificatore viaggia in `candidates`, quindi
+  **nessuna migrazione di schema**; scoperto e corretto un bug del core che scartava `candidates`
+  in tre punti prima di `resolveOne`.
+  Suite: **55/55 pass, 0 gap, 0 FN, 0 FP**; 2957+ test verdi, nessuna regressione.
+  **Prossimo passo:** Fase 5–6 — MCP (verifica che il graph VB6 sia esposto correttamente),
+  metriche §20 sul progetto reale, e i documenti finali `VB6_SUPPORT.md`, `VB6_ARCHITECTURE.md`,
+  `VB6_LIMITATIONS.md`, `TEST_RESULTS.md`, `OPEN_QUESTIONS.md`, `VB6_FORK_ASSESSMENT.md`.

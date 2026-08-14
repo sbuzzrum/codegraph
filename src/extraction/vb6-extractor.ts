@@ -285,6 +285,14 @@ export class Vb6Extractor {
     line: number,
     meta?: Record<string, unknown>,
   ): void {
+    // The qualifier decides what a member reference means (`c.Compute` is a
+    // method of c's type, `ModA.Compute` a procedure of that module), and
+    // resolution happens later, reading the reference back from the database —
+    // where `metadata` has no column. `candidates` does persist, and its
+    // meaning is exactly "qualified name this might resolve to", so the
+    // qualified form travels there.
+    const qualifier = meta?.qualifier;
+    const candidates = typeof qualifier === 'string' && qualifier !== '' ? [`${qualifier}.${name}`] : undefined;
     this.unresolved.push({
       fromNodeId,
       referenceName: name,
@@ -293,6 +301,7 @@ export class Vb6Extractor {
       column: 0,
       filePath: this.filePath,
       language: this.language,
+      candidates,
       metadata: meta,
     });
   }
@@ -893,7 +902,10 @@ export class Vb6FormExtractor {
         };
         res.nodes.push(node);
         res.edges.push({ source: stack[stack.length - 1]!, target: node.id, kind: 'contains' });
-        this.unref(res, node.id, simpleType(typeName), i + 1, isOcx ? { vb6: 'ocx_type' } : { vb6: 'control_type' });
+        // A control instance IS OF the control's type (INSTANCE_OF, §8): a
+        // `type_of` reference, so resolution treats it as a type position and
+        // can reach a UserControl declared elsewhere in the project.
+        this.unref(res, node.id, simpleType(typeName), i + 1, isOcx ? { vb6: 'ocx_type' } : { vb6: 'control_type' }, 'type_of');
         controls.push(node);
         lastControlIdx = controls.length - 1;
         stack.push(node.id);
@@ -918,11 +930,18 @@ export class Vb6FormExtractor {
     }
   }
 
-  private unref(res: ExtractionResult, fromId: string, name: string, line: number, meta: Record<string, unknown>): void {
+  private unref(
+    res: ExtractionResult,
+    fromId: string,
+    name: string,
+    line: number,
+    meta: Record<string, unknown>,
+    kind: UnresolvedReference['referenceKind'] = 'references'
+  ): void {
     res.unresolvedReferences.push({
       fromNodeId: fromId,
       referenceName: name,
-      referenceKind: 'references',
+      referenceKind: kind,
       line,
       column: 0,
       filePath: this.filePath,

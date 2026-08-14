@@ -20,7 +20,7 @@
     ],
     "edges": [
       {
-        "kind": "references",
+        "kind": "type_of",
         "from": "ucEditor",
         "to": "MyControl",
         "toFile": "MyControl.ctl"

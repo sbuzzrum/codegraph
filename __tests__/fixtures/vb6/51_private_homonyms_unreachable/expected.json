@@ -1,7 +1,6 @@
 {
   "description": "two same-named Private functions stay local; an outside caller resolves to neither",
-  "status": "known-gap",
-  "gap": "the caller in ModC is bound to ModA.Compute although both candidates are Private — a false edge where UNRESOLVED is the only correct answer (prompt §21)",
+  "status": "pass",
   "expect": {
     "edges": [
       {

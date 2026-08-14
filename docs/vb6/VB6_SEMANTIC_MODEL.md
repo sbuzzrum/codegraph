@@ -47,7 +47,7 @@ A `WithEvents` field additionally carries `vb6:withevents` (fixture 22).
 | INSTANTIATES | `instantiates` | `New`, `As New` |
 | RETURNS | `returns` | function result type (user-defined types only) |
 | IMPLEMENTS | `implements` | `Implements IFoo`, fixture 25 |
-| USES_CONTROL / INSTANCE_OF | `references` / `type_of` | control instance → control type |
+| USES_CONTROL / INSTANCE_OF | `type_of` | a control instance IS OF its control type, fixture 48 |
 | USES_OCX / REFERENCES_COM | `references` / `imports` | fixtures 40, 47 |
 | DECLARES_EVENT | `contains` | class → `Event` node, fixture 20 |
 | RAISES_EVENT | `references` | `metadata.vb6 = "raises_event"`, fixture 21 |
@@ -129,9 +129,23 @@ type (fixture 31), and `Private`/`Friend` members are not reachable from
 another module at all (fixtures 02, 51).
 
 For a qualified name `Qualifier.Member` the target is the member *of the
-qualifier*, never the qualifier itself (fixtures 26, 29, 30). The extractor
-already emits the member with `metadata.qualifier`; honouring that qualifier
-during resolution is the resolver's job.
+qualifier*, never the qualifier itself (fixtures 26, 29, 30). The qualifier
+may name a module/class/form directly, or a variable whose declared type owns
+the member. When that type is `Object` or `Variant` the call is late-bound and
+has no static target at all (fixture 43).
+
+### How the qualifier survives to resolution
+
+Resolution reads references back **from the database**, where
+`unresolved_refs` has no `metadata` column — so the qualifier cannot travel
+there. It travels in `candidates` instead, whose meaning is already "qualified
+name this might resolve to": the extractor writes `["c.Compute"]` and the
+resolver reads the qualifier back off it. No schema change was needed.
+
+Everything else the resolver needs is derived from the graph rather than
+carried: that a reference is a `RaiseEvent` site is known because its target
+is a node marked `vb6:event`; that a call is late-bound is known because the
+variable's `returnType` is `Object`.
 
 ## What the extractor deliberately does not emit
 

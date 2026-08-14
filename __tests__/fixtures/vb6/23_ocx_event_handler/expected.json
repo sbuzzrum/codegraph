@@ -1,7 +1,6 @@
 {
   "description": "an OCX control is typed from its library and its event handler binds to it",
-  "status": "known-gap",
-  "gap": "no event model for OCX controls (prompt §13 HANDLES_OCX_EVENT)",
+  "status": "pass",
   "expect": {
     "nodes": [
       {

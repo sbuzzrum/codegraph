@@ -1,7 +1,6 @@
 {
   "description": "Form_Load binds to the form itself, and its body still resolves normally",
-  "status": "known-gap",
-  "gap": "no event model: Form_* handlers are not bound to the form (prompt §13)",
+  "status": "pass",
   "expect": {
     "edges": [
       {

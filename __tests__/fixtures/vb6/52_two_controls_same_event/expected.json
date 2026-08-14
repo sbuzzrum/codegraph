@@ -1,7 +1,6 @@
 {
   "description": "two controls sharing an event name each bind to their own handler only",
-  "status": "known-gap",
-  "gap": "no event model, so neither binding exists (prompt §13, §21)",
+  "status": "pass",
   "expect": {
     "edges": [
       {

@@ -21,6 +21,8 @@ import { resolveViaImport, resolveJvmImport, extractImportMappings, extractReExp
 import { ResolverPool, minRefsForPool } from './resolver-pool';
 import { detectFrameworks } from './frameworks';
 import { synthesizeCallbackEdges } from './callback-synthesizer';
+import { Vb6Resolver } from './vb6-resolver';
+import { synthesizeVb6EventBindings } from './vb6-event-synthesizer';
 import { createYielder, type MaybeYield } from './cooperative-yield';
 import { loadProjectAliases, type AliasMap } from './path-aliases';
 import { loadGoModule, type GoModule } from './go-module';
@@ -279,6 +281,12 @@ export class ReferenceResolver {
   private goModule: GoModule | null | undefined = undefined;
   // Monorepo workspace member packages. Same lazy/immutable convention.
   private workspacePackages: WorkspacePackages | null | undefined = undefined;
+  /**
+   * VB6 resolves by scope, not by name similarity, so its references are
+   * routed to a dedicated resolver rather than the generic matcher — see
+   * ./vb6-resolver.ts.
+   */
+  private vb6: Vb6Resolver;
 
   constructor(projectRoot: string, queries: QueryBuilder) {
     this.projectRoot = projectRoot;
@@ -299,6 +307,7 @@ export class ReferenceResolver {
     // file-ordered, so a small cache still hits nearly always.
     this.fileLinesCache = new LRUCache(contentLimit);
     this.methodMatchCache = new LRUCache(limit);
+    this.vb6 = new Vb6Resolver(queries, limit);
 
     this.context = this.createContext();
   }
@@ -396,6 +405,7 @@ export class ReferenceResolver {
     this.fileLinesCache.clear();
     this.methodMatchCache.clear();
     this.methodOwnerIndexCache.clear();
+    this.vb6.clearCaches();
     this.supertypeMemo.clear();
     this.supertypeGen++;
     this.nodesByKindCache.clear();
@@ -714,6 +724,11 @@ export class ReferenceResolver {
       column: ref.column,
       filePath: ref.filePath || this.getFilePathFromNodeId(ref.fromNodeId),
       language: ref.language || this.getLanguageFromNodeId(ref.fromNodeId),
+      // Carried through: `candidates` holds the qualified form a reference may
+      // resolve to, which for VB6 is what distinguishes `c.Compute` (a method
+      // of c's type) from a bare `Compute`. Dropping it here silently reduced
+      // every qualified reference to its bare name.
+      candidates: ref.candidates,
       rowId: ref.rowId,
     }));
 
@@ -873,6 +888,16 @@ export class ReferenceResolver {
       (ref.referenceName.includes('.') || ref.referenceName.includes('/'))
     ) {
       return this.resolveCfmlComponentPath(ref);
+    }
+
+    // VB6 determines a target by scope — enclosing type, then the project's
+    // standard modules — and never by name similarity alone. Routed to its own
+    // resolver, with NO fallthrough: if the language's rules do not name a
+    // single target, the reference must stay unresolved rather than be handed
+    // to the generic matcher, which would bind a Private procedure across
+    // modules or pick one of two homonyms at random (prompt §9, §21).
+    if (ref.language === 'vb6') {
+      return this.vb6.resolve(ref);
     }
 
     // Fast pre-filter: skip if no symbol with this name exists anywhere
@@ -1100,6 +1125,9 @@ export class ReferenceResolver {
         line: ref.original.line,
         column: ref.original.column,
         metadata: {
+          // Language-resolver detail first: it records how the scope decision
+          // was made, and must never shadow the standard keys below.
+          ...(ref.metadata ?? {}),
           confidence: ref.confidence,
           resolvedBy: ref.resolvedBy,
           // The ORIGINAL reference text (and kind, when edge-kind promotion
@@ -1343,6 +1371,7 @@ export class ReferenceResolver {
         column: raw.column,
         filePath: raw.filePath || this.getFilePathFromNodeId(raw.fromNodeId),
         language: raw.language || this.getLanguageFromNodeId(raw.fromNodeId),
+        candidates: raw.candidates,
         rowId: raw.rowId,
       };
       const result = this.resolveOneTimed(ref);
@@ -1463,6 +1492,7 @@ export class ReferenceResolver {
         column: raw.column,
         filePath: raw.filePath || this.getFilePathFromNodeId(raw.fromNodeId),
         language: raw.language || this.getLanguageFromNodeId(raw.fromNodeId),
+        candidates: raw.candidates,
         rowId: raw.rowId,
       };
       const result = this.resolveOneTimed(ref);
@@ -1945,6 +1975,14 @@ export class ReferenceResolver {
       );
     } catch {
       // synthesis is additive and optional; ignore failures
+    }
+    // VB6 wires events by naming convention (`cmdOk_Click`), so the producer →
+    // handler hop exists nowhere in the source. See ./vb6-event-synthesizer.
+    try {
+      const vb6Events = synthesizeVb6EventBindings(this.queries);
+      if (vb6Events > 0) aggregateStats.byMethod['vb6-event-binding'] = vb6Events;
+    } catch {
+      // additive and optional, like the pass above
     }
     if (process.env.CODEGRAPH_SYNTH_TIMINGS) console.error(`[phase-timing] callback-synthesis: ${Date.now() - tSynth}ms`);
     } finally {

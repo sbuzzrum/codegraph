@@ -1,7 +1,6 @@
 {
   "description": "a WithEvents field binds its producer event to the consumer handler",
-  "status": "known-gap",
-  "gap": "WithEvents binding is not implemented: the handler is an unlinked method (prompt §13)",
+  "status": "pass",
   "expect": {
     "nodes": [
       {
