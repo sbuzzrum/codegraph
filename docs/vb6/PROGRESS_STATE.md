@@ -4,8 +4,8 @@
 > (nella dir padre del repo). Questo file traccia **piano**, **decisioni** e **stato**.
 
 Ultimo aggiornamento: 2026-08-14 — fase corrente: **4** (suite di conformità
-completa e verde; extractor validato e misurato; **manca** l'intero resolver
-VB6 — scope, eventi, provenance).
+completa e verde; extractor validato, misurato e **corretto** — E1–E12 chiusi;
+**manca** l'intero resolver VB6 — scope, eventi, provenance: R1–R6).
 
 Committato e pushato su `origin/main`:
 - `2d59953` — `docs(vb6): architecture audit, phased plan and implementation decisions`
@@ -151,23 +151,29 @@ nessuno. `forbid` è ciò che rende la suite utile contro i falsi positivi (§21
       `New`/`As New`, `Implements`, line continuation, commenti.
 - **Commit:** confluiti in `530b584` (`feat(vb6): register language and add custom extractors`).
 
-#### Difetti misurati dell'extractor (da correggere in Fase 4)
-Ordinati per gravità; ognuno ha la sua fixture.
+#### Difetti dell'extractor — **tutti corretti** (2026-08-14)
+Rilevati dalla suite, corretti, e ora protetti dalla fixture che li ha scoperti (promossa a `pass`).
 
-| # | Difetto | Effetto | Fixture |
+| # | Difetto | Correzione | Fixture |
 |---|---|---|---|
-| E1 | chiamata qualificata senza parentesi (`ModA.Process`, `Form1.Reload`, `obj.Metodo arg`) risolta sul **qualificatore** | edge falso verso il modulo/form/variabile, chiamata vera persa | 26, 29, 30 |
-| E2 | `With … End With` ignorato: `.Membro` non produce alcun riferimento | flusso perso | 24 |
-| E3 | argomenti nominati (`Nome:=valore`) impediscono il rilevamento della chiamata | falso negativo | 33 |
-| E4 | le **label** di riga (`ErrHandler:`) sono lette come chiamate implicite | riferimento inventato | 38 |
-| E5 | le **stringhe letterali** non sono neutralizzate prima della ricerca di chiamate | riferimento inventato | 54 |
-| E6 | l'indicizzazione di array (`mItems(3)`) è indistinguibile da una chiamata | edge falso | 55 |
-| E7 | tipi intrinseci (`Long`, `String`, …) emessi come riferimenti che non si risolveranno mai | rumore in `unresolved_refs`, metriche §20 falsate | 05 |
-| E8 | dichiarazioni locali (`Dim`/`Static`/`Const` in procedura) non estratte come nodi | simboli mancanti | 13 |
-| E9 | `Declare` non cattura il tipo di ritorno | attributo mancante | 49 |
-| E10 | control array: un nodo per elemento, tutti con lo stesso `qualifiedName` | simboli duplicati | 18 |
-| E11 | nessun nodo per COM/OCX reference: CLSID e typelib estratti ma non interrogabili | §8/§15 non soddisfatti | 40, 47 |
-| E12 | ProgID di `CreateObject` scartato: early e late binding indistinguibili | §15 non soddisfatto | 41 |
+| E1 | chiamata qualificata senza parentesi (`ModA.Process`, `Form1.Reload`, `obj.Metodo arg`) risolta sul **qualificatore** | scanner per catene puntate: il target è il membro, il qualificatore va in `metadata.qualifier` | 26, 29, 30 |
+| E2 | `With … End With` ignorato | stack dei `With`; `.Membro` è attribuito al target del blocco | 24 |
+| E3 | argomenti nominati (`Nome:=valore`) impediscono il rilevamento della chiamata | l'assegnazione è riconosciuta da `=`, non da `:=` | 33 |
+| E4 | le **label** di riga (`ErrHandler:`) lette come chiamate implicite | le label sono riconosciute e ignorate | 38 |
+| E5 | **stringhe letterali** non neutralizzate prima della ricerca di chiamate | `maskStrings` azzera il contenuto conservando gli offset | 54 |
+| E6 | indicizzazione di array indistinguibile da una chiamata | scan differito: a fine file si sa cosa è stato dichiarato come dato → `references` invece di `calls` | 55 |
+| E7 | tipi intrinseci emessi come riferimenti mai risolvibili | i tipi intrinseci non generano riferimenti | 05 |
+| E8 | dichiarazioni locali non estratte come nodi | `Dim`/`Static`/`Const` in procedura creano nodi `variable`/`constant` | 13 |
+| E9 | `Declare` non cattura il tipo di ritorno | regex estesa a `(…) As Tipo` | 49 |
+| E10 | control array: un nodo per elemento | i `Begin` omonimi nello stesso contenitore condividono un nodo, gli indici si accumulano | 18 |
+| E11 | nessun nodo per COM/OCX reference | nodi `import` con `vb6:com-reference`/`vb6:ocx-reference`, CLSID e typelib nel `docstring`, edge dal progetto e dal form | 40, 47 |
+| E12 | ProgID di `CreateObject` scartato | il ProgID è estratto prima del mascheramento stringhe e registrato con `vb6: late_binding` | 41 |
+
+Effetto misurato sul progetto di prova: le chiamate qualificate ora puntano al membro giusto
+(`cmdAction_Click → DoWork`, prima `→ Module1`), il `With` produce riferimenti, e i riferimenti
+irrisolvibili scendono da 44 a 9 — tutte funzioni/tipi intrinseci VB6 o simboli realmente assenti.
+
+Effetto sulla suite: **29 → 44 fixture pass**, gap 26 → 11, falsi positivi 10 → 4, falsi negativi 30 → 13.
 
 ### Fase 4 — Resolver, scope, eventi, COM *(prossima)*
 
@@ -232,5 +238,12 @@ Ordinati per gravità; ognuno ha la sua fixture.
   30 falsi negativi, 10 falsi positivi. Le fixture hanno scoperto tre difetti non previsti dall'audit:
   argomenti nominati (E3), label di riga (E4), identificatori dentro stringhe (E5).
   Scritto `VB6_SEMANTIC_MODEL.md` fissando il modello eventi e la provenance che il resolver dovrà produrre.
-  **Prossimo passo:** Fase 4 — correggere E1–E6 nell'extractor, poi il resolver VB6 (scope, eventi,
-  provenance persistita). Ogni fix chiude una fixture `known-gap`, che va promossa a `pass`.
+- 2026-08-14 (fix extractor): chiusi **E1–E12**. Il cambiamento strutturale è lo **scan differito**
+  degli statement: le dichiarazioni possono seguire le procedure che le usano, quindi i riferimenti si
+  analizzano quando l'intero file è noto — è ciò che permette di distinguere `Items(3)` da `Helper(3)`.
+  Riscritto lo scanner degli identificatori su regole sintattiche VB6 (catene puntate, blocchi `With`,
+  assegnazione vs chiamata implicita) invece che su euristiche di forma della riga.
+  `provenance` non viene impostata dagli edge statici: il dominio è chiuso (`tree-sitter|scip|heuristic`)
+  e la convenzione del repo è che solo i synthesizer la marchino — `VB6_SEMANTIC_MODEL.md` aggiornato.
+  Suite: **44 pass / 11 gap / 0 fail**; nessuna regressione sulle altre lingue.
+  **Prossimo passo:** Fase 4 — resolver VB6 (scope R1–R3, eventi R4, provenance persistita R5–R6).

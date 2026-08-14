@@ -92,10 +92,15 @@ Every non-syntactic relation records how it was obtained. The specification's
 vocabulary (§14) maps onto CodeGraph's `edges.provenance` column plus edge
 metadata:
 
+CodeGraph's `provenance` column has a closed domain — `'tree-sitter' | 'scip' |
+'heuristic'` — and the house convention is that **static extraction leaves it
+unset**; only synthesizers mark an edge. VB6 follows that convention rather
+than widening the domain, and carries its own detail in `metadata`.
+
 | §14 concept | Representation |
 |---|---|
-| STATIC | `provenance = 'static'` |
-| LEXICAL_SCOPE / MODULE_SCOPE / PROJECT_SCOPE | `provenance = 'static'`, `metadata.scope = 'lexical' \| 'module' \| 'project'` |
+| STATIC | `provenance` unset (the edge came straight from the source) |
+| LEXICAL_SCOPE / MODULE_SCOPE / PROJECT_SCOPE | `metadata.scope = 'lexical' \| 'module' \| 'project'` |
 | TYPE_RESOLUTION | `metadata.scope = 'type'` |
 | EVENT_BINDING / WITHEVENTS_BINDING | `provenance = 'heuristic'` + `metadata.binding` (above) |
 | TYPELIB | `metadata.typelib`, `metadata.clsid` |
@@ -124,4 +129,21 @@ type (fixture 31), and `Private`/`Friend` members are not reachable from
 another module at all (fixtures 02, 51).
 
 For a qualified name `Qualifier.Member` the target is the member *of the
-qualifier*, never the qualifier itself (fixtures 26, 29, 30).
+qualifier*, never the qualifier itself (fixtures 26, 29, 30). The extractor
+already emits the member with `metadata.qualifier`; honouring that qualifier
+during resolution is the resolver's job.
+
+## What the extractor deliberately does not emit
+
+- **Bare variable reads inside expressions.** Tracking every local read would
+  multiply edges for almost no retrieval value; only members, invocations and
+  statement-leading calls are emitted.
+- **Members of the runtime objects** (`Debug`, `Err`, `App`, `Screen`,
+  `Printer`, `Clipboard`, `Forms`): they target VB6 itself, not the project.
+- **Intrinsic types** (`Long`, `String`, `Variant`, …) as reference targets:
+  they can never resolve to a project symbol, so emitting them only pollutes
+  `unresolved_refs` and the §20 metrics.
+
+Intrinsic *functions* (`CStr`, `MsgBox`, `UBound`, …) **are** emitted as calls
+and stay unresolved, because VB6 lets a project redefine them; dropping them
+would silently lose a real call.
