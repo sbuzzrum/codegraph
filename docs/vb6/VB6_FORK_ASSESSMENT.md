@@ -14,9 +14,9 @@ The engine is complete, conformant, free of regressions, and now validated
 against a production VB6 codebase: 2,163 files, 141k nodes, 321k edges, **zero
 files that failed to yield symbols**, indexed in under ten seconds.
 
-That validation exposed five real defects — all of them general, none of them
+That validation exposed nine real defects — all of them general, none of them
 specific to that codebase. Each became a generic fixture, then a fix, then a
-re-validation, in the order §24 prescribes. The conformance suite is 62/62.
+re-validation, in the order §24 prescribes. The conformance suite is 66/66.
 
 Use it, having read `VB6_LIMITATIONS.md` first. The limits are deliberate and
 each states what happens instead of guessing — and one of them shapes
@@ -71,22 +71,23 @@ never at runtime.
 
 ### Automated tests — **good**
 
-62 conformance fixtures, all passing: 0 false negatives, 0 false positives, 0
+66 conformance fixtures, all passing: 0 false negatives, 0 false positives, 0
 parse errors. The oracle is machine-readable and states
 correct VB6 semantics rather than current behaviour, and its `forbid` half
 tests specifically for edges that must *not* exist — which is what a name
 matcher gets wrong and what §21 ranks above recall.
 
-Twelve fixtures beyond the specification's 50 cover cases found while building
+Sixteen fixtures beyond the specification's 50 cover cases found while building
 and while validating: private homonyms, cross-binding of same-named events,
 line continuation, strings and comments, array indexing, body ranges, and —
 from the real codebase — project-scope isolation, implicit visibility,
-cross-module array access, member access on an external type, and picking a
-UserControl by the OCX library that declares it.
+cross-module array access, member access on an external type, picking a
+UserControl by the OCX library that declares it, parameters as qualifiers,
+global object qualifiers, member chains, and a keyword read as a qualifier.
 
 ### Regressions — **none**
 
-`npm test`: 164 files, 2961 tests passing, 0 failures. No existing language is
+`npm test`: 164 files, 2966 tests passing, 0 failures. No existing language is
 affected (§19).
 
 ### Documentation — **complete**
@@ -106,11 +107,12 @@ produces no edge, and synthesized event bindings are marked as synthesized
 with their wiring site.
 
 On the production codebase: every file parsed, 12,229 event bindings were
-recovered, and two rounds of fixes raised resolution from 28.5% to **55.1%** —
-project scope first, then binding member access to the object it is used on
-and letting a control's library pick its UserControl. What remains unresolved
-is names with no symbol in the project: VB6 intrinsics, COM methods, and the
-type names of standard controls. Full numbers in `TEST_RESULTS.md`.
+recovered, and three rounds of fixes raised resolution from 28.5% to **71.2%**.
+The measure that matters more is **internal call-graph coverage — 82.9%**, or
+**92.7%** once the calls VB6 itself cannot reach unqualified are excluded.
+What remains unresolved is names with no symbol in the project: VB6 intrinsics,
+COM methods, and the type names of standard controls. Full numbers in
+`TEST_RESULTS.md`.
 
 ### MCP integration quality — **good**
 
@@ -126,8 +128,8 @@ uncovered.
 External type libraries are not read (so standard control and external COM
 types have no node), conditional compilation is not evaluated (all branches
 stay), `Friend` is treated as `Public`, default properties are not applied,
-plain local reads are not edges, and parameters are not nodes. Each is in
-`VB6_LIMITATIONS.md` with its consequence and rationale.
+and plain local reads are not edges. Each is in `VB6_LIMITATIONS.md` with its
+consequence and rationale.
 
 ---
 

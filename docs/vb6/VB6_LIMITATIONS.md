@@ -72,13 +72,6 @@ references. Reading a local in the middle of an expression does not.
 value. `READS`/`WRITES` in the specification's sense is therefore partial:
 property and member access is covered, plain local reads are not.
 
-## Parameters are not nodes
-
-Parameter names are collected — they are needed to tell an array access from a
-call — but they do not become `parameter` nodes. Signatures are kept verbatim
-on the procedure, so the information is visible, just not queryable as
-symbols.
-
 ## `Property Get` and `Property Let` share a name
 
 They are separate nodes, distinguished by `vb6:property-get` / `-let` / `-set`

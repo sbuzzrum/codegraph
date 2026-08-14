@@ -62,7 +62,7 @@ npm test
 
 ```
 Test Files  164 passed | 15 skipped (179)
-     Tests  2961 passed | 178 skipped (3139)
+     Tests  2966 passed | 178 skipped (3144)
 ```
 
 No failures. VB6 support adds a language, three extractors, a resolver branch
@@ -191,6 +191,34 @@ indexed `.vbp` (20% of the tree — orphans and backups are normal in a codebase
 this old). It would recover 5,394 references: **1.7%** of the unresolved set,
 in exchange for a heuristic that can bind the wrong target. Not implemented —
 the trade is bad at that ratio.
+
+### Round 3 — measuring the right thing
+
+The resolution rate mixes `MsgBox` (unresolvable by definition) with a call
+between two procedures of the project (which must always resolve). The metric
+that reflects use is **internal call-graph coverage**: how many calls to
+procedures of the project are edges. Measuring it changed what got worked on.
+
+| | round 2 | + parameters & global qualifiers | + chain roots | + keyword fix |
+|---|---|---|---|---|
+| Resolution rate | 55.1% | 65.7% | 70.8% | **71.2%** |
+| Internal call graph | 66.7% | 77.6% | 82.4% | **82.9%** |
+| …excluding calls VB6 itself cannot reach | — | — | 92.7% | **92.7%** |
+
+Three defects, each found by asking where the missed calls went:
+
+| Defect | Effect | Fixture |
+|---|---|---|
+| **Parameters were not nodes.** A parameter is very often the qualifier of a member call (`pItem.Refresh`); with no symbol for it, the call had nothing to resolve against. `NodeKind parameter` existed and the semantic model claimed it — it was a gap, not a decision. | ~14k references | `62_parameter_as_qualifier` |
+| **The qualifier was looked up only in the calling file.** A VB6 application keeps its shared objects in `Public` module variables, used as qualifiers everywhere; the resolver could not see them. Now it follows the same scope chain it uses for calls. | ~10k | `63_global_object_qualifier` |
+| **Member chains stopped at the first unknown link.** In `Adodc1.Recordset.MoveNext` the immediate qualifier (`Recordset`) names nothing, so the whole expression was lost — including the link to `Adodc1`, which is a control that IS in the graph. The chain root is now a second chance. | ~17k | `64_member_chain_root` |
+| **A keyword before a dot was read as a qualifier.** `If .Recordcount > 0 Then` inside a `With` attributed `Recordcount` to `If` — inventing a qualifier and losing the real one. Found by noticing `If` among the top unresolved qualifiers, which is nonsense on its face. | ~1k, and wrong rather than merely missing | `65_with_member_after_keyword` |
+
+The last line of that table is the honest one: of the calls still missed,
+73% name a procedure that exists **only** in a class or form, which VB6 cannot
+reach unqualified. Excluding those, coverage is 92.7% — and what remains is
+mostly utility procedures duplicated across projects, called from files that
+belong to no indexed `.vbp`.
 
 ### Per-project vs whole-tree indexing
 

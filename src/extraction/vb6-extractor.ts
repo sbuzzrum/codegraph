@@ -173,19 +173,25 @@ function nextNonSpace(s: string, from: number): number {
   return i < s.length ? i : -1;
 }
 
-/** Parameter names declared in a procedure signature `(ByVal a As Long, b())`. */
-function parameterNames(signature: string): string[] {
+/**
+ * Parameters declared in a procedure signature `(ByVal a As Long, b() As Foo)`.
+ *
+ * The declared type matters as much as the name: a parameter is very often the
+ * qualifier of a member call (`pItem.Refresh`), and without its type that call
+ * has nothing to resolve against.
+ */
+function parameterDecls(signature: string): Array<{ name: string; type?: string }> {
   const paren = signature.match(/\(([\s\S]*)\)/);
   if (!paren) return [];
-  const names: string[] = [];
+  const out: Array<{ name: string; type?: string }> = [];
   for (const part of splitDecls(paren[1]!)) {
     const m = part
       .trim()
       .replace(/^(?:Optional\s+)?(?:ByVal\s+|ByRef\s+)?(?:ParamArray\s+)?/i, '')
-      .match(/^([A-Za-z_]\w*)/);
-    if (m) names.push(m[1]!);
+      .match(/^([A-Za-z_]\w*)\s*(?:\([^)]*\))?\s*(?:As\s+(?:New\s+)?([A-Za-z_][\w.]*))?/i);
+    if (m) out.push({ name: m[1]!, type: m[2] ? simpleType(m[2]) : undefined });
   }
-  return names;
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -292,7 +298,10 @@ export class Vb6Extractor {
     // meaning is exactly "qualified name this might resolve to", so the
     // qualified form travels there.
     const qualifier = meta?.qualifier;
-    const candidates = typeof qualifier === 'string' && qualifier !== '' ? [`${qualifier}.${name}`] : undefined;
+    const chainRoot = meta?.chainRoot;
+    const candidates: string[] = [];
+    if (typeof qualifier === 'string' && qualifier !== '') candidates.push(`${qualifier}.${name}`);
+    if (typeof chainRoot === 'string' && chainRoot !== '') candidates.push(`${chainRoot}.${name}`);
     this.unresolved.push({
       fromNodeId,
       referenceName: name,
@@ -301,7 +310,7 @@ export class Vb6Extractor {
       column: 0,
       filePath: this.filePath,
       language: this.language,
-      candidates,
+      candidates: candidates.length > 0 ? candidates : undefined,
       metadata: meta,
     });
   }
@@ -429,10 +438,10 @@ export class Vb6Extractor {
           returnType,
         });
         if (returnType && !isIntrinsicType(returnType)) this.addRef(proc.id, returnType, 'returns', l.line);
-        for (const p of parameterNames(m[4] ?? '')) this.declaredVars.add(p.toLowerCase());
         // A Function assigns its result through its own name; that is not a
         // recursive call, and the name is not data either.
         this.stack.push({ id: proc.id, name: proc.name, kind: 'method' });
+        this.emitParameters(m[4] ?? '', l.line);
         mode = { kind: 'proc', end: new RegExp(`^End\\s+${m[2]}\\b`, 'i'), procId: proc.id, node: proc };
         continue;
       }
@@ -447,8 +456,8 @@ export class Vb6Extractor {
           decorators: [`vb6:property-${accessor}`],
           returnType: m[5] ? simpleType(m[5]) : undefined,
         });
-        for (const p of parameterNames(m[4] ?? '')) this.declaredVars.add(p.toLowerCase());
         this.stack.push({ id: prop.id, name: prop.name, kind: 'property' });
+        this.emitParameters(m[4] ?? '', l.line);
         mode = { kind: 'proc', end: /^End\s+Property\b/i, procId: prop.id, node: prop };
         continue;
       }
@@ -465,7 +474,7 @@ export class Vb6Extractor {
           returnType: m[7] ? simpleType(m[7]) : undefined,
           docstring: `Declare Lib "${m[4]}"${m[5] ? ` Alias "${m[5]}"` : ''}`,
         });
-        for (const p of parameterNames(m[6] ?? '')) this.declaredVars.add(p.toLowerCase());
+        for (const p of parameterDecls(m[6] ?? '')) this.declaredVars.add(p.name.toLowerCase());
         continue;
       }
 
@@ -585,6 +594,22 @@ export class Vb6Extractor {
     return true;
   }
 
+  /**
+   * Emit a `parameter` node per declared parameter, contained by the
+   * procedure. They are symbols of the language (§8) and, more practically,
+   * the qualifier of a member call is very often one of them.
+   */
+  private emitParameters(signature: string, line: number): void {
+    for (const p of parameterDecls(signature)) {
+      this.declaredVars.add(p.name.toLowerCase());
+      const node = this.mkNode('parameter', p.name, line, line, {
+        returnType: p.type,
+        signature: p.type ? `${p.name} As ${p.type}` : p.name,
+      });
+      if (p.type && !isIntrinsicType(p.type)) this.addRef(node.id, p.type, 'type_of', line);
+    }
+  }
+
   /** Pop the scope stack back down to (and keeping) the module container. */
   private popTo(moduleId: string): void {
     while (this.stack.length && this.stack[this.stack.length - 1]!.id !== moduleId) {
@@ -689,6 +714,7 @@ export class Vb6Extractor {
 
     const ident = /[A-Za-z_]\w*/g;
     let chainStart = -1; // offset where the current dotted chain begins
+    let chainRoot: string | undefined; // the identifier that opens that chain
     let match: RegExpExecArray | null;
 
     while ((match = ident.exec(body)) !== null) {
@@ -708,6 +734,7 @@ export class Vb6Extractor {
       if (!isMember) {
         // Head of a new chain. A qualifier (`A` in `A.B`) is never a target.
         chainStart = start;
+        chainRoot = name;
         if (nextCh === '.') continue;
 
         const lower = name.toLowerCase();
@@ -730,15 +757,25 @@ export class Vb6Extractor {
       // Who is the member accessed on? Either the identifier before the dot, or
       // the enclosing `With` when the dot opens the expression.
       const beforeDot = prevNonSpace(body, prevIdx - 1);
-      const qualifiedByExpr = beforeDot >= 0 && /[\w)\]]/.test(body[beforeDot]!);
+      let qualifiedByExpr = beforeDot >= 0 && /[\w)\]]/.test(body[beforeDot]!);
       let qualifier: string | undefined;
       if (qualifiedByExpr) {
         const qm = body.slice(0, beforeDot + 1).match(/([A-Za-z_]\w*)\s*$/);
         qualifier = qm?.[1];
-      } else {
+        // `If .Recordcount > 0 Then` — the word before the dot is a KEYWORD, so
+        // the dot does not belong to it: this is a `With` member that happens
+        // to follow a keyword. Attributing it to `If` both invents a qualifier
+        // and loses the real one.
+        if (qualifier && KEYWORDS.has(qualifier.toLowerCase())) {
+          qualifier = undefined;
+          qualifiedByExpr = false;
+        }
+      }
+      if (!qualifiedByExpr) {
         qualifier = this.withStack[this.withStack.length - 1];
         if (qualifier === undefined) continue; // a dot with no owner: skip
         chainStart = prevIdx; // the chain starts at the dot itself
+        chainRoot = qualifier;
       }
 
       // Members of the VB6 runtime objects are not project symbols.
@@ -747,6 +784,13 @@ export class Vb6Extractor {
       // `Me` is the current type, so the member is unqualified in practice.
       const meta: Record<string, unknown> = {};
       if (qualifier && qualifier.toLowerCase() !== 'me') meta.qualifier = qualifier;
+      // `Adodc1.Recordset.MoveNext`: the immediate qualifier (`Recordset`) is
+      // itself a member of something external, so it names no symbol. The ROOT
+      // of the chain (`Adodc1`) usually does, and it is the object the whole
+      // expression acts on — worth keeping as a second chance for resolution.
+      if (chainRoot && qualifier && chainRoot.toLowerCase() !== qualifier.toLowerCase()) {
+        meta.chainRoot = chainRoot;
+      }
 
       const isChainHead = chainStart === 0 || forcedCall;
       if (invoked || (isChainHead && !assigned)) {

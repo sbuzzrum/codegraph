@@ -1,0 +1,4 @@
+Type=Exe
+Class=C_Data; C_Data.cls
+Module=ModUse; ModUse.bas
+Name="Proj"

@@ -7,16 +7,16 @@
 
 | Metric | Value |
 |---|---|
-| Fixtures | 61 |
-| Passing | 61 |
+| Fixtures | 65 |
+| Passing | 65 |
 | Known gaps (semantics not implemented yet) | 0 |
 | Failing (regression — oracle says pass) | 0 |
 | Ready to promote (gap closed) | 0 |
-| Expected assertions | 145 |
-| Assertions satisfied | 145 |
+| Expected assertions | 152 |
+| Assertions satisfied | 152 |
 | False negatives (expected, missing) | 0 |
 | False positives (forbidden, present) | 0 |
-| Unresolved references | 21 |
+| Unresolved references | 22 |
 | Parse errors | 0 |
 
 ## Per fixture
@@ -84,3 +84,7 @@
 | 59_public_array_cross_module | pass | 1 | 1 | 0 | 0 | 0 |  |
 | 60_member_on_external_type | pass | 2 | 2 | 0 | 0 | 1 |  |
 | 61_ocx_type_from_sibling_project | pass | 3 | 3 | 0 | 0 | 0 |  |
+| 62_parameter_as_qualifier | pass | 3 | 3 | 0 | 0 | 0 |  |
+| 63_global_object_qualifier | pass | 1 | 1 | 0 | 0 | 0 |  |
+| 64_member_chain_root | pass | 1 | 1 | 0 | 0 | 1 |  |
+| 65_with_member_after_keyword | pass | 2 | 2 | 0 | 0 | 0 |  |

@@ -1,0 +1,15 @@
+{
+  "description": "a member reached through a chain of unknown intermediates still links to the object at the root",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      { "kind": "references", "from": "Refresh2", "to": "Adodc1", "metadata": { "vb6": "member_on" }, "count": 1 }
+    ]
+  },
+  "forbid": {
+    "unresolved": [
+      { "name": "MoveNext" },
+      { "name": "Recordset" }
+    ]
+  }
+}

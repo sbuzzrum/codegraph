@@ -1,0 +1,13 @@
+{
+  "description": "a .Member inside With is attributed to the With target even after a keyword like If",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      { "kind": "references", "from": "Run", "to": "Count2", "toFile": "C_Data.cls" },
+      { "kind": "calls", "from": "Run", "to": "Reset2", "toFile": "C_Data.cls" }
+    ]
+  },
+  "forbid": {
+    "unresolved": [{ "name": "Count2" }, { "name": "Reset2" }]
+  }
+}

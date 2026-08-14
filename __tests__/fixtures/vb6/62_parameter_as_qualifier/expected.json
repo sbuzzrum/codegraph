@@ -1,0 +1,13 @@
+{
+  "description": "a procedure parameter is a symbol, and a member call through it resolves on its type",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      { "kind": "parameter", "name": "pItem", "returnType": "C_Item" }
+    ],
+    "edges": [
+      { "kind": "contains", "from": "Process", "to": "pItem" },
+      { "kind": "calls", "from": "Process", "to": "Refresh2", "toFile": "C_Item.cls" }
+    ]
+  }
+}

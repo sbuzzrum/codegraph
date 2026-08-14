@@ -1,0 +1,4 @@
+Type=Exe
+Class=C_Item; C_Item.cls
+Module=ModUse; ModUse.bas
+Name="Proj"

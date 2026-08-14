@@ -1,0 +1,5 @@
+Type=Exe
+Class=C_Config; C_Config.cls
+Module=ModGlobals; ModGlobals.bas
+Module=ModUse; ModUse.bas
+Name="Proj"

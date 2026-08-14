@@ -53,6 +53,16 @@ function isPrivate(node: Node): boolean {
   return node.visibility === 'private';
 }
 
+/** A symbol that holds data — the kind of thing a qualifier names. */
+function isData(node: Node): boolean {
+  return (
+    node.kind === 'variable' ||
+    node.kind === 'field' ||
+    node.kind === 'constant' ||
+    node.kind === 'parameter'
+  );
+}
+
 export class Vb6Resolver {
   // Bounded like every other resolver cache: an unbounded Map grows with each
   // distinct lookup and is how this layer has OOM'd on large codebases before.
@@ -150,7 +160,10 @@ export class Vb6Resolver {
       // the link to it is worth keeping (see linkToQualifier).
       const onlyQualifier = qualifierOf(ref);
       if (!onlyQualifier || ref.referenceKind === 'type_of') return null;
-      return this.linkToQualifier(ref, onlyQualifier, this.findData(onlyQualifier, ref.filePath));
+      return (
+        this.linkToQualifier(ref, onlyQualifier, this.findData(onlyQualifier, ref.filePath)) ??
+        this.linkToChainRoot(ref)
+      );
     }
 
     switch (ref.referenceKind) {
@@ -221,7 +234,14 @@ export class Vb6Resolver {
       }
     }
 
-    return this.linkToQualifier(ref, qualifier, variable);
+    return this.linkToQualifier(ref, qualifier, variable) ?? this.linkToChainRoot(ref);
+  }
+
+  /** Last chance for a member chain: bind to the object the chain starts from. */
+  private linkToChainRoot(ref: UnresolvedRef): ResolvedRef | null {
+    const root = chainRootOf(ref);
+    if (!root) return null;
+    return this.linkToQualifier(ref, root, this.findData(root, ref.filePath));
   }
 
   /**
@@ -328,7 +348,16 @@ export class Vb6Resolver {
     return hit;
   }
 
-  /** A variable, field or control of the given name declared in this file. */
+  /**
+   * The data symbol a qualifier names, following VB6 scope: locals and
+   * parameters of the calling file first, then `Public` variables of the
+   * project's standard modules.
+   *
+   * The second step matters more than it looks: a VB6 application keeps its
+   * shared objects in `Public` module variables, and they are qualifiers all
+   * over the codebase. Looking only in the calling file loses every one of
+   * them.
+   */
   private findData(name: string, filePath: string): Node | undefined {
     const key = name.toLowerCase();
     let nodes = this.byFile.get(filePath);
@@ -336,15 +365,38 @@ export class Vb6Resolver {
       nodes = this.queries.getNodesByFile(filePath);
       this.byFile.set(filePath, nodes);
     }
-    return nodes.find(
-      (n) => n.name.toLowerCase() === key && (n.kind === 'variable' || n.kind === 'field' || n.kind === 'constant')
+    const own = nodes.find((n) => n.name.toLowerCase() === key && isData(n));
+    if (own) return own;
+
+    const globals = this.lookup(name).filter(
+      (n) => isData(n) && isStandardModule(n) && n.visibility !== 'private'
     );
+    if (globals.length === 0) return undefined;
+    if (globals.length === 1) return globals[0];
+
+    // Several projects may declare the same global; prefer the caller's.
+    const ownProject = globals.filter((n) => this.shareProject(filePath, n.filePath) === true);
+    return ownProject.length === 1 ? ownProject[0] : undefined;
   }
 }
 
 /** The qualifier carried by the extractor in `candidates` (`c.Compute` → `c`). */
 function qualifierOf(ref: UnresolvedRef): string | undefined {
-  const candidate = ref.candidates?.[0];
+  return qualifierAt(ref, 0);
+}
+
+/**
+ * The root of a member chain, when the extractor recorded one:
+ * `Adodc1.Recordset.MoveNext` puts `Recordset.MoveNext` first and
+ * `Adodc1.MoveNext` second. Used as a second chance when the immediate
+ * qualifier names nothing.
+ */
+function chainRootOf(ref: UnresolvedRef): string | undefined {
+  return qualifierAt(ref, 1);
+}
+
+function qualifierAt(ref: UnresolvedRef, index: number): string | undefined {
+  const candidate = ref.candidates?.[index];
   if (!candidate) return undefined;
   const dot = candidate.lastIndexOf('.');
   return dot > 0 ? candidate.slice(0, dot) : undefined;

@@ -1,0 +1,9 @@
+{
+  "description": "a Public object variable of another standard module works as a qualifier",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      { "kind": "calls", "from": "Run", "to": "Load2", "toFile": "C_Config.cls" }
+    ]
+  }
+}

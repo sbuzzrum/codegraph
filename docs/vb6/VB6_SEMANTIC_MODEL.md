@@ -27,6 +27,7 @@ for a concept that cannot be expressed at all — none so far.
 | `Declare` (external) | `method` | `vb6:declare` | 49 |
 | Module-level variable | `field` | — | 11, 12 |
 | Procedure local | `variable` | — | 13 |
+| Parameter | `parameter` | — | 62 |
 | `Const` | `constant` | — | 11 |
 | `Enum` / members | `enum` / `enum_member` | — | 09 |
 | `Type … End Type` | `struct` (members `field`) | — | 10 |
@@ -128,6 +129,11 @@ for an unqualified name inside a procedure:
 3. `Public` procedures of standard modules in the same project (fixture 31);
 4. otherwise unresolved.
 
+The same chain applies when resolving a **qualifier**: locals and parameters of
+the calling file first, then `Public` variables of the project's standard
+modules (fixture 63). Looking only in the calling file loses every shared
+object a VB6 application keeps in a module-level `Public` variable.
+
 Class and form members are **never** reachable unqualified from outside their
 type (fixture 31), and `Private`/`Friend` members are not reachable from
 another module at all (fixtures 02, 51).
@@ -175,6 +181,17 @@ This answers "what touches this control", which is most of what a reader of a
 VB6 application wants, without ever claiming to have found the member. The
 same applies to late-bound calls (`Dim o As Object`): the edge points at `o`,
 never at a guessed target.
+
+### Chains
+
+`Adodc1.Recordset.MoveNext`: the immediate qualifier (`Recordset`) is itself a
+member of something external and names no symbol, so the reference falls back
+to the **root** of the chain — `Adodc1`, a control that is in the graph. The
+extractor records both, in `candidates`, and the resolver tries them in order.
+Fixture 64.
+
+Several members of one chain on one line collapse into a single edge: edge
+identity includes line and column, by design.
 
 ## Control types name their library
 
