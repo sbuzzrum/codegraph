@@ -255,6 +255,55 @@ like a handler — `Implements` methods (`IFoo_Bar`) and helpers with an
 underscore look identical — and binds only when a control or `WithEvents`
 field of that name actually exists in the same file.
 
+## Comparison against upstream CodeGraph on the same codebase
+
+The same production codebase had been indexed earlier with **upstream
+CodeGraph**, which has no VB6 support: it maps those files to the VB.NET
+grammar. Both databases were compared directly.
+
+| | upstream (as VB.NET) | this fork |
+|---|---|---|
+| Files indexed | 2,003 | 2,163 (`.vbp`/`.vbg` included) |
+| Nodes | 51,897 | 172,762 |
+| Edges (non-containment) | 89,745 | 340,967 |
+| `references` edges | **0** | 212,709 |
+| `type_of` edges | **0** | 8,985 |
+| Form controls | **0** | 28,855 |
+| Event bindings | **0** | 12,229 |
+| Project / group nodes | **0** | 160 |
+| COM / OCX references | **0** | 3,154 |
+
+Volume is the least interesting part. **Correctness** is the point:
+
+| Edges that cannot exist in VB6 | upstream | this fork |
+|---|---|---|
+| Calls to a `Private` procedure in another file | **4,693** | 102 |
+| Cross-file calls into a form's members | **31,990** | 1,739 |
+
+Both residuals here are legitimate, checked one by one: the 102 are
+`WithEvents` bindings, where the handler is `Private` by convention and its
+producer lives in the class that raises the event; 1,726 of the 1,739 are
+**qualified** calls through a form's default instance (`Form1.Method`), which
+VB6 does allow.
+
+### Where the two disagree
+
+Of the calls both indexes resolve from the same file and name, **37% land on a
+different file**. A worked example, verified in the source: a UserControl
+calls `setStato`, which it declares itself as `Private`; another form
+elsewhere declares a `Private Sub setStato` too. Upstream binds the call to
+the *other file's* private procedure — which VB6 cannot reach — while this
+fork binds it to the one in the same file. There is no judgement call here:
+one of the two is impossible.
+
+That is the shape of the difference throughout: name similarity versus scope.
+
+| | |
+|---|---|
+| Calls resolved by both | 12,671 (62.9% agreeing on the target file) |
+| Resolved only by this fork | 33,444 |
+| Resolved only by upstream | 1,945 |
+
 ## Not covered
 
 The agent A/B flow validation the repository expects per language
