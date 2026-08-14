@@ -4,41 +4,44 @@ Decisions that are made but not settled, and things that need evidence from a
 real codebase before they can be answered. Distinct from
 `VB6_LIMITATIONS.md`, which lists boundaries that are deliberate and closed.
 
-## 1. How much does the missing type-library layer actually cost?
+## 1. How much does the missing type-library layer actually cost? — **answered**
 
-Standard VB control types and external COM types are not in the graph, so
-`Timer`, `CommandButton`, `ADODB.Connection` and friends stay unresolved. On
-the fixtures this is a handful of references; on a real application that leans
-on third-party OCX controls it could be the majority of the unresolved set.
+Measured on a real 2,163-file codebase: **62% of all unresolved references are
+member access on an object whose type is not in the graph** (`.Text`, `.Value`,
+`.Caption` on controls; `.Fields`, `.Recordset` on COM objects), plus another
+31k `type_of` references naming standard control types.
 
-**What would answer it:** the unresolved breakdown from indexing a real
-project. If external types dominate, reading type libraries — or shipping a
-small table of the standard VB6 controls — becomes worth its cost.
+So yes: external types dominate the unresolved set, decisively. That makes
+question 2 the highest-value open item — and it also means the resolution rate
+on a VB6 application will always look low without it, however good the resolver
+gets.
 
 ## 2. Should the standard VB6 control types ship as built-in nodes?
 
-A cheap subset of the above: `VB.CommandButton`, `VB.TextBox`, `VB.Timer`, …
-are the same in every VB6 installation and could be synthesised as external
-symbols so control instances have a target.
+Now the highest-value open item, given (1). `VB.CommandButton`, `VB.TextBox`,
+`VB.Timer` and their members are identical in every VB6 installation and could
+ship as a small built-in table, so a control instance has a target and `.Text`
+resolves.
 
-**Against:** they are not code in the project; inventing nodes for them
-inflates the graph and blurs "indexed" with "known".
-**For:** it removes the most common unresolved category and lets an agent see
-that `tmrTick` is a Timer.
+**Against:** they are not code in the project; inventing nodes for them blurs
+"indexed" with "known", and the table has to be maintained.
+**For:** on the measured codebase it is the single largest category of
+unresolved references, by a wide margin.
 
-Undecided; needs (1) first.
+A middle option worth considering: synthesise them as external nodes marked
+plainly as such, so they are visibly not project code.
 
-## 3. Multi-project resolution across a `.vbg`
+## 3. Multi-project resolution across a `.vbg` — **answered and implemented**
 
-A project group is indexed and its projects are linked, but resolution does
-not use project membership to decide scope: a `Public` procedure of a standard
-module is global to everything indexed, not to *its project*. With two
-projects in one index that share a module name, the wrong one can win.
+Real groups do contain same-named public procedures in sibling projects, and
+abundantly: one name had 21 definitions across 111 projects in the measured
+codebase. Without project scope the resolver saw ambiguity everywhere and
+resolved nothing.
 
-**What would answer it:** whether real groups actually contain same-named
-public procedures in sibling projects. If they do, resolution has to filter
-candidates by the project that contains the calling file, which means walking
-`.vbp` membership at resolution time.
+Resolution now filters candidates by `.vbp` membership, which lifted the
+resolution rate from 28.5% to 35.7%. What remains open is the **20% of files
+that belong to no indexed `.vbp`**: see the limitation of the same name, and
+the measured reason a directory fallback was rejected.
 
 ## 4. `Property Let` versus `Property Get` on a write
 
@@ -51,26 +54,28 @@ not currently record.
 
 Worth doing if property-heavy code proves common.
 
-## 5. Are procedure locals worth their node count?
+## 5. Are procedure locals worth their node count? — **measured, still open**
 
-Locals became nodes to satisfy the semantic model (§8 lists `Variable`). They
-are numerous and rarely queried; on a large codebase they may be a significant
-share of all nodes with little retrieval value.
+On the real codebase, `variable` nodes are 28,644 of 141,016 — **20% of the
+graph** — and they exist mostly so that an array access can be told from a
+call. That purpose is real but it does not need them to be *nodes*; a per-file
+set of declared names would do.
 
-**What would answer it:** the node-count breakdown on a real project, and
-whether any query actually reaches them.
+Still open because the cost is tolerable and removing them would lose a
+`Variable` the semantic model claims to have. Revisit if graph size becomes a
+constraint.
 
-## 6. Does the event-binding heuristic hold up at scale?
+## 6. Does the event-binding heuristic hold up at scale? — **partly answered**
 
-A handler binds only when a producer of that name exists in the same file,
-which is precise on the fixtures. Unknown: how often real code has a procedure
-that merely *looks* like a handler (`Data_Refresh` where `Data` is a control
-that does not raise `Refresh`), and how often a genuine handler is missed
-because its producer is declared elsewhere.
+On the real codebase it produced 12,229 bindings and left 38% of
+underscore-named methods unbound — the precision gate refusing to guess where
+no producer of that name exists in the file. That is the intended shape.
 
-**What would answer it:** a precision spot-check of synthesized edges on a
-real project, the way the dynamic-dispatch playbook prescribes for every other
-synthesizer.
+Still open: the **false-negative** side. Some of that 38% are genuine handlers
+whose producer the designer section did not yield (a control added at run time
+with `Load`, or a `WithEvents` field declared in a different file). Nothing
+measured yet says how large that share is; a sample would need reading the
+proprietary source, which is out of scope here.
 
 ## 7. Should VB6 get a `codegraph_explore` flow test?
 

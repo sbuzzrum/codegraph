@@ -1,0 +1,4 @@
+Type=Exe
+Module=AppA_Mod; AppA_Mod.bas
+Module=AppA_Caller; AppA_Caller.bas
+Name="AppA"

@@ -1116,6 +1116,17 @@ export class ReferenceResolver {
         ) {
           kind = 'instantiates';
         }
+        // VB6 writes an array access exactly like a call — `Items(3)`. The
+        // extractor tells them apart from the declarations in the same file,
+        // but an array declared in ANOTHER module can only be recognised here,
+        // once the reference has a target: data is indexed, not called.
+        else if (
+          targetNode &&
+          targetNode.language === 'vb6' &&
+          (targetNode.kind === 'variable' || targetNode.kind === 'field' || targetNode.kind === 'constant')
+        ) {
+          kind = 'references';
+        }
       }
 
       return {

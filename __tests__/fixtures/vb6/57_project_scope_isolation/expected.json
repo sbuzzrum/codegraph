@@ -1,0 +1,16 @@
+{
+  "description": "with two projects indexed together, a call resolves inside its own project",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      { "kind": "calls", "from": "CallerA", "to": "Shared_Routine", "toFile": "AppA_Mod.bas" },
+      { "kind": "calls", "from": "CallerB", "to": "Shared_Routine", "toFile": "AppB_Mod.bas" }
+    ]
+  },
+  "forbid": {
+    "edges": [
+      { "kind": "calls", "from": "CallerA", "toFile": "AppB_Mod.bas" },
+      { "kind": "calls", "from": "CallerB", "toFile": "AppA_Mod.bas" }
+    ]
+  }
+}

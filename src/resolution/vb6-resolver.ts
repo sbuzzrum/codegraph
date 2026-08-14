@@ -29,6 +29,7 @@ import { Node } from '../types';
 import { QueryBuilder } from '../db/queries';
 import { UnresolvedRef, ResolvedRef } from './types';
 import { LRUCache } from './lru-cache';
+import { projectMemberFiles } from '../extraction/vb6-extractor';
 
 /** Kinds that can own members — a VB6 module, class, form or UserControl. */
 const CONTAINER_KINDS = new Set(['module', 'class', 'namespace', 'struct', 'interface']);
@@ -58,6 +59,18 @@ export class Vb6Resolver {
   private byName: LRUCache<string, Node[]>;
   private byFile: LRUCache<string, Node[]>;
 
+  /**
+   * Which projects each file belongs to, from `.vbp` membership. A VB6 name
+   * is scoped to its PROJECT, not to everything that happens to be indexed:
+   * when several projects sit in one index — the normal case for a product
+   * built from many `.vbp` — the same procedure name legitimately exists in
+   * each, and without this the resolver sees an ambiguity that does not exist
+   * for the caller and resolves nothing.
+   *
+   * Built once, lazily: null until the first reference needs it.
+   */
+  private projectsByFile: Map<string, Set<string>> | null = null;
+
   /** @param cacheLimit shared with the other resolver caches (see index.ts). */
   constructor(private queries: QueryBuilder, cacheLimit: number) {
     this.byName = new LRUCache(cacheLimit);
@@ -68,6 +81,49 @@ export class Vb6Resolver {
   clearCaches(): void {
     this.byName.clear();
     this.byFile.clear();
+    this.projectsByFile = null;
+  }
+
+  private projectIndex(): Map<string, Set<string>> {
+    if (this.projectsByFile) return this.projectsByFile;
+    const map = new Map<string, Set<string>>();
+    for (const project of this.queries.getNodesByKind('module')) {
+      if (project.language !== 'vb6' || !project.decorators?.includes('vb6:project')) continue;
+      // Read from the node, not from `contains` edges: those edges are created
+      // by the very resolution pass that asks this question, so at this point
+      // most of them do not exist yet.
+      for (const file of projectMemberFiles(project.docstring)) {
+        let owners = map.get(file);
+        if (!owners) {
+          owners = new Set();
+          map.set(file, owners);
+        }
+        owners.add(project.id);
+      }
+      // The `.vbp` itself belongs to its project.
+      let own = map.get(project.filePath);
+      if (!own) {
+        own = new Set();
+        map.set(project.filePath, own);
+      }
+      own.add(project.id);
+    }
+    this.projectsByFile = map;
+    return map;
+  }
+
+  /**
+   * True when both files belong to a common project, false when they provably
+   * do not, null when membership is unknown for either — a file listed in no
+   * indexed `.vbp` must not be cut off from resolution.
+   */
+  private shareProject(a: string, b: string): boolean | null {
+    const index = this.projectIndex();
+    const left = index.get(a);
+    const right = index.get(b);
+    if (!left || !right) return null;
+    for (const project of left) if (right.has(project)) return true;
+    return false;
   }
 
   /**
@@ -160,6 +216,12 @@ export class Vb6Resolver {
   ): ResolvedRef | null {
     let pool = dedupe(candidates);
     if (pool.length === 0) return null;
+
+    if (pool.length > 1) {
+      // Candidates outside the caller's project are not candidates at all.
+      const ownProject = pool.filter((n) => this.shareProject(ref.filePath, n.filePath) === true);
+      if (ownProject.length > 0) pool = ownProject;
+    }
 
     if (pool.length > 1) {
       // A call names something callable.

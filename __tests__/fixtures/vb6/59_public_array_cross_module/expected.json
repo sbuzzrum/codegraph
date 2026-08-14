@@ -1,0 +1,14 @@
+{
+  "description": "indexing an array declared in another module is a reference, not a call",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      { "kind": "references", "from": "Run", "to": "gItems", "toFile": "ModData.bas" }
+    ]
+  },
+  "forbid": {
+    "edges": [
+      { "kind": "calls", "from": "Run", "to": "gItems" }
+    ]
+  }
+}

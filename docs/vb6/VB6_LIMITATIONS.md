@@ -99,10 +99,34 @@ fixtures exist specifically for the cases where a scanner is most likely to
 guess wrong (homonyms, labels, strings, array indexing, late binding).
 Anything found in the wild should become a fixture before it becomes a fix.
 
-## Not yet validated on a large real project
+## Project membership decides scope, and it is only as good as the `.vbp`
 
-The engine is validated against its conformance suite. It has not been run
-against a large production VB6 codebase, so nothing is known about behaviour
-at that scale — parse robustness on decades-old files, performance, or the
-resolution rate on code that uses the language in ways these fixtures do not.
-This is the main open risk; see `VB6_FORK_ASSESSMENT.md`.
+A VB6 name is scoped to its project, so resolution filters candidates by the
+`.vbp` the calling file belongs to. A file listed in **no** indexed `.vbp` —
+orphans, backups, modules kept outside the build — has unknown membership, and
+for those files the project filter cannot apply: if several same-named
+candidates exist across the index, the reference stays unresolved.
+
+Measured on a real 2,163-file codebase: 79.7% of source files were covered by
+`.vbp` membership. A directory-proximity fallback for the rest would recover
+1.7% of the unresolved set at the cost of a heuristic that can bind the wrong
+target, so it is deliberately not implemented (§21 ranks unresolved above a
+false edge).
+
+**Consequence.** Index a project by its `.vbp`/`.vbg` rather than by a folder
+of loose files where you can, and expect weaker resolution for files that
+belong to no project.
+
+## Most unresolved references are member access on external types
+
+This is the practical shape of the type-library limitation above, and it is
+worth stating plainly because it dominates the numbers: on a real codebase,
+**62% of unresolved references were member access on an object** — `.Text` on
+a control, `.Fields` on a recordset — whose type is not in the graph.
+
+They are not errors and they are not resolvable by trying harder: binding
+`.Text` to some same-named property elsewhere in the project is precisely the
+false certainty the specification forbids. VB6 code leans heavily on controls
+and COM, so a graph of a VB6 application will always be denser in structure
+(who calls what, who handles which event) than in data flow through control
+properties.

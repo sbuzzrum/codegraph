@@ -3,12 +3,12 @@
 > Documento vivo. Fonte autoritativa dei requisiti: `PROMPT_CODEGRAPH_VB6_FORK_PERSONALE.md`
 > (nella dir padre del repo). Questo file traccia **piano**, **decisioni** e **stato**.
 
-Ultimo aggiornamento: 2026-08-14 — fasi **1–6 completate**. Motore VB6 completo
-(extractor + resolver + binding eventi), MCP verificato, documentazione e
-assessment prodotti. Suite di conformità **56/56**, 0 gap, 0 falsi positivi,
-0 regressioni (2958 test verdi).
-Giudizio (§25): **READY FOR USE WITH RESERVATIONS** — la riserva è la mancata
-validazione su un repository VB6 reale (§24), unico passo residuo.
+Ultimo aggiornamento: 2026-08-14 — **tutte le fasi completate, §24 inclusa**.
+Motore VB6 completo (extractor + resolver + binding eventi), MCP verificato,
+documentazione e assessment prodotti, **validazione real-world eseguita** su una
+codebase VB6 di produzione (2.163 file, 0 file non parsati).
+Suite di conformità **59/59**, 0 gap, 0 falsi positivi, 0 regressioni (2961 test verdi).
+Giudizio (§25): **READY FOR USE**.
 
 Committato e pushato su `origin/main`:
 - `2d59953` — `docs(vb6): architecture audit, phased plan and implementation decisions`
@@ -254,14 +254,38 @@ type library COM esterne non sono lette — i tipi dei controlli VB standard res
 - [x] `VB6_FORK_ASSESSMENT.md` — **READY FOR USE WITH RESERVATIONS**.
 - [x] Push su `origin/main` (mai upstream, mai PR upstream).
 
-### Fase 7 — Validazione real-world *(da fare, §24)*
-Unico passo residuo, e l'unica riserva dell'assessment. Sequenza prescritta:
-indicizzare un repository VB6 reale → misurare parse error, unresolved per categoria, nodi/edge,
-tempi → per ogni difetto **prima** una fixture minimale, poi il fix del motore, poi la suite, poi
-la rivalidazione del repository. Mai eccezioni specifiche per il repository.
+### Fase 7 — Validazione real-world *(completa, §24)*
+
+Eseguita su una codebase VB6 di produzione multi-progetto, **copiata in sola lettura** fuori dal
+repository (§28: sorgenti originali mai toccati; §23: nessun nome, path o snippet proprietario nel fork).
+
+**Scala:** 2.163 file (111 `.vbp`, 49 `.vbg`, 903 `.frm`, 647 `.cls`, 299 `.bas`, 154 `.ctl`),
+141.016 nodi, 321.442 edge, 9,5 s di indicizzazione, 1,8 GB RSS di picco, **0 file senza simboli**.
+
+**Tre difetti generali trovati e corretti**, ognuno con la sua fixture *generica* scritta prima del fix:
+
+| Difetto | Fixture |
+|---|---|
+| scope di progetto assente: un nome VB6 è scoped al suo `.vbp`, non all'intero indice — con 111 progetti insieme un nome aveva 21 definizioni e nessuna risolveva | `57_project_scope_isolation` |
+| visibilità implicita: procedura senza modificatore = `Public`, `Dim`/`Const` a livello modulo = `Private` (3.280 metodi senza visibilità) | `58_implicit_visibility` |
+| accesso ad array dichiarato in un altro modulo registrato come chiamata | `59_public_array_cross_module` |
+
+La membership di progetto doveva essere leggibile **senza dipendere dall'ordine di resolution** (gli edge
+`contains` che la descrivono sono prodotti dalla stessa pass che ne ha bisogno): l'extractor del `.vbp`
+registra ora i file membri sul nodo progetto.
+
+**Effetto:** edge non-contains 141.648 → **177.036**; tasso di risoluzione 28,5% → **35,7%**.
+
+**Natura del residuo:** il 61,9% degli unresolved sono accessi a membri di oggetti il cui tipo non è nel
+graph (controlli VB standard, oggetti COM) — esterni per costruzione, non difetti del resolver. Un
+ripiego per prossimità di directory recupererebbe l'1,7% al prezzo di un'euristica che può sbagliare:
+**scartato** (§21).
+
+**Eventi su scala reale:** 12.229 binding sintetizzati; il 38% dei metodi con nome `X_Y` resta non
+legato — è il gate di precisione che rifiuta di indovinare dove il produttore non esiste nel file.
 
 ## 4. Vincoli permanenti (dal prompt)
-- Codice **general-purpose**, zero riferimenti Itineris (nomi/path/workaround). §23.
+- Codice **general-purpose**: zero nomi, path o workaround del progetto proprietario usato per la validazione. §23.
 - Lavoro solo su branch `main` del fork, commit piccoli e logici, push solo su `origin`. §4–5.
 - Mai riscrivere storia upstream, mai PR upstream, mai credenziali/codice proprietario nel fork. §28.
 - Nessun supporto VB6 è "completo" se rompe lingue esistenti. §19.

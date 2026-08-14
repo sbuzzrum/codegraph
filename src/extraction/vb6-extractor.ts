@@ -511,7 +511,8 @@ export class Vb6Extractor {
         for (const decl of splitDecls(m[2]!)) {
           const cm = decl.match(/^\[?([A-Za-z_]\w*)\]?\s*(?:As\s+([A-Za-z_][\w.]*))?\s*=\s*(.+)$/i);
           if (cm) this.mkNode('constant', cm[1]!, l.line, l.endLine, {
-            visibility: visFrom(m[1]), signature: decl.trim(), returnType: cm[2] ? simpleType(cm[2]) : undefined,
+            // A module-level Const with no modifier is Private, like Dim.
+            visibility: visFrom(m[1], 'private'), signature: decl.trim(), returnType: cm[2] ? simpleType(cm[2]) : undefined,
           });
         }
         continue;
@@ -522,7 +523,7 @@ export class Vb6Extractor {
       if (m) {
         const withEvents = !!m[2];
         this.emitVarDecls(m[3]!, l.line, l.endLine, {
-          visibility: visFrom(m[1]),
+          visibility: visFrom(m[1], 'private'),
           withEvents,
           asField: true,
         });
@@ -761,10 +762,18 @@ export class Vb6Extractor {
 // Small pure helpers
 // ---------------------------------------------------------------------------
 
-function visFrom(kw?: string): Node['visibility'] | undefined {
-  if (!kw) return undefined;
+/**
+ * VB6 visibility from the declaration keyword.
+ *
+ * Two rules that are easy to get wrong and both matter for scope: a procedure
+ * with NO modifier is **Public**, and a module-level `Dim` is **Private**
+ * (unlike `Public`/`Global`). `fallback` is what an absent keyword means for
+ * the construct being declared.
+ */
+function visFrom(kw: string | undefined, fallback: Node['visibility'] = 'public'): Node['visibility'] {
+  if (!kw) return fallback;
   const k = kw.toLowerCase();
-  if (k === 'private') return 'private';
+  if (k === 'private' || k === 'dim') return 'private';
   if (k === 'friend') return 'internal';
   return 'public'; // Public / Global
 }
@@ -961,6 +970,25 @@ export class Vb6FormExtractor {
 // ---------------------------------------------------------------------------
 
 /**
+ * Marker prefixing the JSON list of member files on a project node's
+ * `docstring`. Resolution needs to know which files make up a project before
+ * any `contains` edge exists — those edges are produced BY resolution — so the
+ * membership travels on the node itself. Read with `projectMemberFiles()`.
+ */
+export const VB6_PROJECT_FILES = 'vb6:files=';
+
+/** The member files recorded on a project node, or [] if it carries none. */
+export function projectMemberFiles(docstring: string | undefined): string[] {
+  if (!docstring || !docstring.startsWith(VB6_PROJECT_FILES)) return [];
+  try {
+    const parsed = JSON.parse(docstring.slice(VB6_PROJECT_FILES.length));
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
  * `.vbp` (project) and `.vbg` (project group). We extract project scope: the
  * project node, its member files (Form/Module/Class/UserControl/Designer), and
  * external references (Reference/Object → COM/OCX). The goal is scope + code
@@ -1001,6 +1029,12 @@ export class Vb6ProjectExtractor {
       for (const raw of lines) { const tm = raw.match(/^\s*Type\s*=\s*(\w+)/i); if (tm) { projType = tm[1]!; break; } }
       const proj = mkContainer('module', projName, this.filePath, fileId, lines.length, ['vb6:project']);
       proj.node.signature = `VB6 ${projType} project`;
+      // Files this project is made of, as index-relative paths. A VB6 name is
+      // scoped to its project, so resolution needs this membership — and it
+      // cannot wait for the `contains` edges below, which are themselves
+      // produced by the resolution pass that needs the answer. Carrying it on
+      // the node makes project scope available from the first reference on.
+      const memberFiles: string[] = [];
       nodes.push(proj.node); edges.push(proj.edge);
 
       for (let i = 0; i < lines.length; i++) {
@@ -1009,6 +1043,8 @@ export class Vb6ProjectExtractor {
         let m = raw.match(/^\s*(Form|Module|Class|UserControl|Designer|RelatedDoc|UserDocument|PropertyPage)\s*=\s*(.+?)\s*$/i);
         if (m) {
           unresolved.push(ref(proj.node.id, memberName(m[2]!), 'contains', i + 1, this.filePath, { vb6: 'project_member', memberKind: m[1] }));
+          const file = memberFilePath(this.filePath, m[2]!);
+          if (file) memberFiles.push(file);
           continue;
         }
         // Components: `Object={GUID}#maj.min#lcid; FILE.ocx` (early-bound OCX).
@@ -1037,10 +1073,37 @@ export class Vb6ProjectExtractor {
           edges.push({ source: proj.node.id, target: node.id, kind: 'imports', metadata: { vb6: 'com_reference' } });
         }
       }
+
+      // Membership, readable straight off the node (see VB6_PROJECT_FILES).
+      if (memberFiles.length > 0) {
+        proj.node.docstring = `${VB6_PROJECT_FILES}${JSON.stringify(memberFiles)}`;
+      }
     }
 
     return { nodes, edges, unresolvedReferences: unresolved, errors, durationMs: Date.now() - startTime };
   }
+}
+
+/**
+ * Resolve a `.vbp` member entry to the file it names, relative to the index
+ * root: `Module1; sub\\Module1.bas` in `app/App.vbp` → `app/sub/Module1.bas`.
+ * Returns undefined when the entry carries no file name.
+ */
+function memberFilePath(vbpPath: string, entry: string): string | undefined {
+  const parts = entry.split(';');
+  const raw = (parts.length > 1 ? parts[1]! : parts[0]!).trim().replace(/"/g, '');
+  if (raw === '' || !/\.[A-Za-z]+$/.test(raw)) return undefined;
+  const rel = raw.replace(/\\/g, '/');
+  const dir = vbpPath.replace(/\\/g, '/').replace(/\/[^/]*$/, '');
+  const joined = dir === vbpPath.replace(/\\/g, '/') ? rel : `${dir}/${rel}`;
+  // Normalise `a/./b` and `a/x/../b` without touching the platform's fs.
+  const out: string[] = [];
+  for (const seg of joined.split('/')) {
+    if (seg === '' || seg === '.') continue;
+    if (seg === '..') out.pop();
+    else out.push(seg);
+  }
+  return out.join('/');
 }
 
 function mkFile(filePath: string, endLine: number, id: string): Node {

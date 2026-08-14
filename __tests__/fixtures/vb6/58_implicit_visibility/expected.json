@@ -1,0 +1,15 @@
+{
+  "description": "a procedure with no modifier is Public; a module-level Dim is Private",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      { "kind": "method", "name": "NoModifier", "visibility": "public" },
+      { "kind": "method", "name": "AlsoPublic", "visibility": "public" },
+      { "kind": "field", "name": "mModuleLevel", "visibility": "private" }
+    ],
+    "edges": [
+      { "kind": "calls", "from": "Run", "to": "NoModifier", "toFile": "ModA.bas" },
+      { "kind": "calls", "from": "Run", "to": "AlsoPublic", "toFile": "ModA.bas" }
+    ]
+  }
+}

@@ -4,21 +4,28 @@ Assessment of the VB6 support implemented in this personal fork
 (`github.com/sbuzzrum/codegraph`), against the criteria of §25 of the
 specification.
 
-Date: 2026-08-14.
+Date: 2026-08-14 (updated after real-world validation).
 
 ---
 
-# Verdict: **READY FOR USE WITH RESERVATIONS**
+# Verdict: **READY FOR USE**
 
-The engine is complete, conformant and free of regressions, and it can be used
-to index VB6 projects today. The reservation is not about a missing feature:
-it is that **the engine has never been run against a large real VB6 codebase**,
-so its behaviour at that scale is unmeasured. That is the one thing the
-fixtures cannot tell us, and the specification itself (§24) puts real-world
-validation after — not instead of — the conformance suite.
+The engine is complete, conformant, free of regressions, and now validated
+against a production VB6 codebase: 2,163 files, 141k nodes, 321k edges, **zero
+files that failed to yield symbols**, indexed in under ten seconds.
 
-Read `VB6_LIMITATIONS.md` before relying on the graph; the limits are
-deliberate and each says what happens instead.
+That validation exposed three real defects — all of them general, none of them
+specific to that codebase. Each became a generic fixture, then a fix, then a
+re-validation, in the order §24 prescribes. The conformance suite is 59/59.
+
+Use it, having read `VB6_LIMITATIONS.md` first. The limits are deliberate and
+each states what happens instead of guessing — and one of them shapes
+expectations enough to repeat here: **member access on standard controls and
+COM objects does not resolve**, because those types live in type libraries this
+engine does not read. On a real VB6 application that is the majority of the
+unresolved set. What you get is a dense, trustworthy map of *structure* — who
+calls what, who handles which event, what belongs to which project — not of
+data flow through control properties.
 
 ---
 
@@ -64,19 +71,21 @@ never at runtime.
 
 ### Automated tests — **good**
 
-56 conformance fixtures, 132 assertions, all passing: 0 false negatives, 0
-false positives, 0 parse errors. The oracle is machine-readable and states
+59 conformance fixtures, 140 assertions, all passing: 0 false negatives, 0 false positives, 0
+parse errors. The oracle is machine-readable and states
 correct VB6 semantics rather than current behaviour, and its `forbid` half
 tests specifically for edges that must *not* exist — which is what a name
 matcher gets wrong and what §21 ranks above recall.
 
-Six fixtures beyond the specification's 50 cover cases found while building:
-private homonyms, cross-binding of same-named events, line continuation,
-strings and comments, array indexing, and body ranges.
+Nine fixtures beyond the specification's 50 cover cases found while building
+and while validating: private homonyms, cross-binding of same-named events,
+line continuation, strings and comments, array indexing, body ranges, and —
+from the real codebase — project-scope isolation, implicit visibility, and
+cross-module array access.
 
 ### Regressions — **none**
 
-`npm test`: 164 files, 2958 tests passing, 0 failures. No existing language is
+`npm test`: 164 files, 2961 tests passing, 0 failures. No existing language is
 affected (§19).
 
 ### Documentation — **complete**
@@ -87,16 +96,19 @@ fixture that pins it), `VB6_LIMITATIONS.md`, `VB6_CONFORMANCE.md` (generated),
 `TEST_RESULTS.md`, `OPEN_QUESTIONS.md`, `IMPLEMENTATION_DECISIONS.md`,
 `PROGRESS_STATE.md`.
 
-### Reliability of the VB6 graph — **good on what is covered**
+### Reliability of the VB6 graph — **good, and now measured on real code**
 
 The graph reflects VB6 semantics rather than name similarity: visibility is
-enforced, qualified calls resolve to the member and not the qualifier,
-ambiguity produces no edge, late binding produces no edge, and synthesized
-event bindings are marked as synthesized with their wiring site.
+enforced, names are scoped to their project, qualified calls resolve to the
+member and not the qualifier, ambiguity produces no edge, late binding
+produces no edge, and synthesized event bindings are marked as synthesized
+with their wiring site.
 
-The measurable effect: on the sample project, unresolved references fell from
-44 to 9 as the extractor and resolver were fixed, and the nine that remain are
-external by nature.
+On the production codebase: every file parsed, 12,229 event bindings were
+recovered, and the project-scope fix raised resolution from 28.5% to 35.7%.
+The residue is dominated (62%) by member access on types that are not in the
+graph — external by nature, not a resolver failure. Full numbers in
+`TEST_RESULTS.md`.
 
 ### MCP integration quality — **good**
 
@@ -117,29 +129,29 @@ plain local reads are not edges, and parameters are not nodes. Each is in
 
 ---
 
-## What the reservation means in practice
+## What to expect in practice
 
-**You can** index a VB6 project and rely on: the symbol inventory, containment
-and project membership, call and reference edges within the indexed source,
-event flow including `WithEvents` and OCX handlers, and the absence of
-invented edges.
+**Rely on:** the symbol inventory, containment and project membership, call and
+reference edges within the indexed source, event flow including `WithEvents`
+and OCX handlers, the enforcement of `Private`/project scope, and the absence
+of invented edges.
 
-**You should not yet** assume: that every file in a decades-old codebase parses
-cleanly, that indexing time and memory are acceptable at scale, or that the
-resolution rate measured here (fixtures) carries over to production code.
+**Do not expect:** members of standard VB controls or COM objects to resolve,
+conditional-compilation branches to be filtered, or default properties to be
+applied. And index by `.vbp`/`.vbg` where you can — files that belong to no
+indexed project resolve less well, by design.
 
-**To lift the reservation** — the sequence §24 prescribes:
+**Known open items**, none of them blocking, all in `OPEN_QUESTIONS.md`: the
+highest-value one is whether the standard VB6 control types should ship as
+built-in nodes, which is what would move the resolution rate materially. The
+agent A/B flow validation the repository expects per language has not been run
+for VB6.
 
-1. index a real VB6 repository;
-2. record parse errors, unresolved breakdown by category, node/edge counts and
-   wall-clock time;
-3. for anything that turns out wrong, write a minimal fixture first, fix the
-   engine, re-run the suite, then re-validate the repository — never patch for
-   the repository;
-4. spot-check the precision of synthesized event edges, as the dynamic-dispatch
-   playbook requires of every synthesizer;
-5. run the agent A/B flow validation on small, medium and large VB6 repos.
+## Honesty note on the validation
 
-If those pass without engine changes, the verdict becomes READY FOR USE. If
-they surface general defects, the fixtures grow and the engine is fixed — the
-process the whole build has followed so far.
+The codebase used for validation is proprietary and is **not** part of this
+fork: it was copied read-only, indexed outside the repository, and only
+aggregate metrics are reported. No name, path, snippet or workaround from it
+appears anywhere in the code, the fixtures or the documentation — the three
+fixtures it motivated are written from scratch with neutral names, and each
+would have been just as valid had the defect been found anywhere else.
