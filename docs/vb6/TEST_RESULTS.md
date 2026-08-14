@@ -62,7 +62,7 @@ npm test
 
 ```
 Test Files  164 passed | 15 skipped (179)
-     Tests  2968 passed | 178 skipped (3146)
+     Tests  2969 passed | 178 skipped (3147)
 ```
 
 No failures. VB6 support adds a language, three extractors, a resolver branch
@@ -201,9 +201,9 @@ procedures of the project are edges. Measuring it changed what got worked on.
 
 | | round 2 | + parameters & global qualifiers | + chain roots | + keyword fix |
 |---|---|---|---|---|
-| Resolution rate | 55.1% | 65.7% | 70.8% | **71.2%** |
-| Internal call graph | 66.7% | 77.6% | 82.4% | **82.9%** |
-| …excluding calls VB6 itself cannot reach | — | — | 92.7% | **92.7%** |
+| Resolution rate | 55.1% | 65.7% | 70.8% | **71.3%** |
+| Internal call graph | 66.7% | 77.6% | 82.4% | **83.1%** |
+| …excluding calls VB6 itself cannot reach | — | — | 92.7% | **92.8%** |
 
 Three defects, each found by asking where the missed calls went:
 
@@ -303,6 +303,27 @@ That is the shape of the difference throughout: name similarity versus scope.
 | Calls resolved by both | 12,671 (62.9% agreeing on the target file) |
 | Resolved only by this fork | 33,444 |
 | Resolved only by upstream | 1,945 |
+
+### What the 1,945 upstream-only edges are
+
+Worth classifying rather than assuming, since they could have been calls this
+fork loses:
+
+| | share |
+|---|---|
+| We leave it unresolved because several candidates exist and none is determinable (upstream picks one) | 61.4% |
+| The "called name" is a **VB6 keyword** — `private`, `public`, `set` — read as a call by the VB.NET grammar | 31.4% |
+| Upstream points at a `Private` procedure in another file (impossible) | 3.8% |
+| The symbol exists in the same file and we missed it — a real defect | 3.0% |
+| Symbol absent from our index | 0.4% |
+
+So a third are pure parsing artefacts, and the largest group is the deliberate
+abstention on files that belong to no `.vbp`.
+
+The 3% was worth chasing: it turned out `RaiseEvent Changed(Compute(1))` and
+`With Child()` dropped everything after the event name or the With target —
+those statements returned early instead of scanning their arguments. Fixed;
+fixture `67_args_of_raiseevent_and_with`.
 
 ## Not covered
 

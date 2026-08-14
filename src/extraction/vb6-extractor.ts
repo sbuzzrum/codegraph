@@ -668,9 +668,12 @@ export class Vb6Extractor {
     if (/^[A-Za-z_]\w*\s*:\s*$/.test(t)) return;
 
     // With blocks: remember the target so `.Member` lines can be attributed.
+    // The target is an EXPRESSION and may itself contain calls
+    // (`With Child()`), so it is scanned too rather than just recorded.
     let m = t.match(/^With\s+(.+)$/i);
     if (m) {
       this.withStack.push(lastSegment(m[1]!));
+      this.scanIdentifiers(m[1]!, fromId, line);
       return;
     }
     if (/^End\s+With\b/i.test(t)) {
@@ -678,10 +681,13 @@ export class Vb6Extractor {
       return;
     }
 
-    // RaiseEvent Name(...)
-    m = t.match(/^RaiseEvent\s+([A-Za-z_]\w*)/i);
+    // RaiseEvent Name(args...)
+    m = t.match(/^RaiseEvent\s+([A-Za-z_]\w*)\s*(\(([\s\S]*)\))?\s*$/i);
     if (m) {
       this.addRef(fromId, m[1]!, 'references', line, { vb6: 'raises_event' });
+      // The arguments are ordinary expressions and can contain calls; without
+      // this they were silently dropped along with the rest of the statement.
+      if (m[3]) this.scanIdentifiers(m[3], fromId, line);
       return;
     }
 

@@ -1,0 +1,14 @@
+{
+  "description": "arguments of RaiseEvent and the target expression of With are still scanned for calls",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      { "kind": "references", "from": "Fire", "to": "Changed", "metadata": { "vb6": "raises_event" } },
+      { "kind": "calls", "from": "Fire", "to": "Compute2" },
+      { "kind": "calls", "from": "Walk", "to": "Child2" }
+    ]
+  },
+  "forbid": {
+    "unresolved": [{ "name": "Compute2" }, { "name": "Child2" }]
+  }
+}

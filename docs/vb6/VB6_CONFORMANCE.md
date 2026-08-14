@@ -7,16 +7,16 @@
 
 | Metric | Value |
 |---|---|
-| Fixtures | 66 |
-| Passing | 66 |
+| Fixtures | 67 |
+| Passing | 67 |
 | Known gaps (semantics not implemented yet) | 0 |
 | Failing (regression — oracle says pass) | 0 |
 | Ready to promote (gap closed) | 0 |
-| Expected assertions | 153 |
-| Assertions satisfied | 153 |
+| Expected assertions | 156 |
+| Assertions satisfied | 156 |
 | False negatives (expected, missing) | 0 |
 | False positives (forbidden, present) | 0 |
-| Unresolved references | 23 |
+| Unresolved references | 24 |
 | Parse errors | 0 |
 
 ## Per fixture
@@ -89,3 +89,4 @@
 | 64_member_chain_root | pass | 1 | 1 | 0 | 0 | 1 |  |
 | 65_with_member_after_keyword | pass | 2 | 2 | 0 | 0 | 0 |  |
 | 66_duplicate_type_prefers_project | pass | 1 | 1 | 0 | 0 | 1 |  |
+| 67_args_of_raiseevent_and_with | pass | 3 | 3 | 0 | 0 | 1 |  |

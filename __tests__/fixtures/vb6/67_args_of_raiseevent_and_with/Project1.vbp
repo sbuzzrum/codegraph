@@ -1,0 +1,3 @@
+Type=Exe
+Class=C_Box; C_Box.cls
+Name="Proj"
