@@ -1,0 +1,13 @@
+{
+  "description": "a symbol spans its whole body, so a reader gets the code and not just the signature",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      { "kind": "method", "name": "Run", "startLine": 14, "endLine": 19 },
+      { "kind": "method", "name": "Twice", "startLine": 21, "endLine": 23 },
+      { "kind": "struct", "name": "TPoint", "startLine": 4, "endLine": 7 },
+      { "kind": "enum", "name": "ColorKind", "startLine": 9, "endLine": 12 },
+      { "kind": "module", "name": "Module1", "startLine": 1, "endLine": 24 }
+    ]
+  }
+}

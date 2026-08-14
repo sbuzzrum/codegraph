@@ -368,11 +368,15 @@ export class Vb6Extractor {
    * as the `from` for module-level references (Implements, module-level New).
    */
   private parseBody(lines: LogicalLine[], moduleId: string): void {
+    // Each block mode carries the node it opened, so its `endLine` can be
+    // closed on the matching `End …`. Without that a procedure spans a single
+    // line and every consumer — codegraph_node, explore — shows its signature
+    // instead of its body.
     type Mode =
       | { kind: 'module' }
-      | { kind: 'proc'; end: RegExp; procId: string }
-      | { kind: 'type'; structId: string }
-      | { kind: 'enum'; enumId: string };
+      | { kind: 'proc'; end: RegExp; procId: string; node: Node }
+      | { kind: 'type'; structId: string; node: Node }
+      | { kind: 'enum'; enumId: string; node: Node };
     let mode: Mode = { kind: 'module' };
 
     for (const l of lines) {
@@ -381,6 +385,7 @@ export class Vb6Extractor {
       // ---- inside a Sub/Function/Property body -----------------------------
       if (mode.kind === 'proc') {
         if (mode.end.test(t)) {
+          mode.node.endLine = l.endLine;
           this.popTo(moduleId);
           mode = { kind: 'module' };
           continue;
@@ -396,7 +401,7 @@ export class Vb6Extractor {
 
       // ---- inside a Type … End Type ---------------------------------------
       if (mode.kind === 'type') {
-        if (/^End\s+Type\b/i.test(t)) { this.popTo(moduleId); mode = { kind: 'module' }; continue; }
+        if (/^End\s+Type\b/i.test(t)) { mode.node.endLine = l.endLine; this.popTo(moduleId); mode = { kind: 'module' }; continue; }
         const mm = t.match(/^([A-Za-z_]\w*)\s*(\([^)]*\))?\s+As\s+([A-Za-z_][\w.]*)/i);
         if (mm) {
           this.mkNode('field', mm[1]!, l.line, l.endLine, { signature: mm[3], returnType: simpleType(mm[3]!) });
@@ -406,7 +411,7 @@ export class Vb6Extractor {
 
       // ---- inside an Enum … End Enum --------------------------------------
       if (mode.kind === 'enum') {
-        if (/^End\s+Enum\b/i.test(t)) { this.popTo(moduleId); mode = { kind: 'module' }; continue; }
+        if (/^End\s+Enum\b/i.test(t)) { mode.node.endLine = l.endLine; this.popTo(moduleId); mode = { kind: 'module' }; continue; }
         const mm = t.match(/^\[?([A-Za-z_]\w*)\]?\s*(?:=\s*(.+))?$/);
         if (mm) this.mkNode('enum_member', mm[1]!, l.line, l.endLine, { signature: mm[2]?.trim() });
         continue;
@@ -428,7 +433,7 @@ export class Vb6Extractor {
         // A Function assigns its result through its own name; that is not a
         // recursive call, and the name is not data either.
         this.stack.push({ id: proc.id, name: proc.name, kind: 'method' });
-        mode = { kind: 'proc', end: new RegExp(`^End\\s+${m[2]}\\b`, 'i'), procId: proc.id };
+        mode = { kind: 'proc', end: new RegExp(`^End\\s+${m[2]}\\b`, 'i'), procId: proc.id, node: proc };
         continue;
       }
 
@@ -444,7 +449,7 @@ export class Vb6Extractor {
         });
         for (const p of parameterNames(m[4] ?? '')) this.declaredVars.add(p.toLowerCase());
         this.stack.push({ id: prop.id, name: prop.name, kind: 'property' });
-        mode = { kind: 'proc', end: /^End\s+Property\b/i, procId: prop.id };
+        mode = { kind: 'proc', end: /^End\s+Property\b/i, procId: prop.id, node: prop };
         continue;
       }
 
@@ -487,7 +492,7 @@ export class Vb6Extractor {
       if (m) {
         const st = this.mkNode('struct', m[2]!, l.line, l.endLine, { visibility: visFrom(m[1]) });
         this.stack.push({ id: st.id, name: st.name, kind: 'struct' });
-        mode = { kind: 'type', structId: st.id };
+        mode = { kind: 'type', structId: st.id, node: st };
         continue;
       }
 
@@ -496,7 +501,7 @@ export class Vb6Extractor {
       if (m) {
         const en = this.mkNode('enum', m[2]!, l.line, l.endLine, { visibility: visFrom(m[1]) });
         this.stack.push({ id: en.id, name: en.name, kind: 'enum' });
-        mode = { kind: 'enum', enumId: en.id };
+        mode = { kind: 'enum', enumId: en.id, node: en };
         continue;
       }
 

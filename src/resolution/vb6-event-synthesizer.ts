@@ -59,7 +59,7 @@ export function synthesizeVb6EventBindings(queries: QueryBuilder): number {
     if (!found) continue;
     const { producer, eventName } = found;
 
-    addEdge(edges, seen, producer.node.id, handler.id, producer.binding, eventName);
+    addEdge(edges, seen, producer.node.id, handler.id, producer.binding, eventName, producer.node);
 
     // For WithEvents the producing class is indexed too, so the Event
     // declaration itself can reach the handler. That is the hop that makes the
@@ -72,7 +72,7 @@ export function synthesizeVb6EventBindings(queries: QueryBuilder): number {
         const declaration = fileNodes(type.filePath).find(
           (n) => n.name.toLowerCase() === eventName.toLowerCase() && n.decorators?.includes('vb6:event')
         );
-        if (declaration) addEdge(edges, seen, declaration.id, handler.id, 'withevents', eventName);
+        if (declaration) addEdge(edges, seen, declaration.id, handler.id, 'withevents', eventName, declaration);
       }
     }
   }
@@ -128,7 +128,8 @@ function addEdge(
   source: string,
   target: string,
   binding: Vb6EventBinding,
-  event: string
+  event: string,
+  wiringSite: Node
 ): void {
   const key = `${source}\0${target}\0${binding}`;
   if (seen.has(key)) return;
@@ -137,7 +138,17 @@ function addEdge(
     source,
     target,
     kind: 'calls',
+    line: wiringSite.startLine,
     provenance: 'heuristic',
-    metadata: { synthesizedBy: 'vb6-event-binding', binding, event },
+    metadata: {
+      synthesizedBy: 'vb6-event-binding',
+      binding,
+      event,
+      // Where the wiring is declared — the designer line for a control, the
+      // `WithEvents` declaration for a field. Tooling shows this as the
+      // registration site, which is the one place a reader can check a
+      // synthesized binding for themselves.
+      registeredAt: `${wiringSite.filePath}:${wiringSite.startLine}`,
+    },
   });
 }

@@ -38,6 +38,13 @@ interface NodeExpect {
   visibility?: string;
   returnType?: string;
   qualifiedName?: string;
+  startLine?: number;
+  /**
+   * Last line of the symbol. Pinning it is what guarantees a consumer gets the
+   * whole body: a procedure whose endLine equals its startLine renders as its
+   * signature alone, and the reader has to open the file anyway.
+   */
+  endLine?: number;
   /** Every listed decorator must be present on the node. */
   decorators?: string[];
   /**
@@ -90,6 +97,8 @@ interface GraphNode {
   visibility: string | null;
   returnType: string | null;
   decorators: string[];
+  startLine: number;
+  endLine: number;
 }
 
 interface GraphEdge {
@@ -140,7 +149,8 @@ async function indexFixture(fixtureDir: string, tmpDir: string): Promise<Snapsho
 
   const nodes: GraphNode[] = db
     .prepare(
-      `SELECT id, kind, name, qualified_name qn, file_path file, visibility, return_type rt, decorators
+      `SELECT id, kind, name, qualified_name qn, file_path file, visibility, return_type rt, decorators,
+              start_line, end_line
        FROM nodes WHERE language = 'vb6'`
     )
     .all()
@@ -153,6 +163,8 @@ async function indexFixture(fixtureDir: string, tmpDir: string): Promise<Snapsho
       visibility: r.visibility ?? null,
       returnType: r.rt ?? null,
       decorators: parseJson(r.decorators) ?? [],
+      startLine: r.start_line,
+      endLine: r.end_line,
     }));
 
   const edges: GraphEdge[] = db
@@ -205,6 +217,8 @@ function nodeMatches(n: GraphNode, e: NodeExpect): boolean {
   if (e.visibility !== undefined && n.visibility !== e.visibility) return false;
   if (e.returnType !== undefined && n.returnType !== e.returnType) return false;
   if (e.qualifiedName !== undefined && n.qualifiedName !== e.qualifiedName) return false;
+  if (e.startLine !== undefined && n.startLine !== e.startLine) return false;
+  if (e.endLine !== undefined && n.endLine !== e.endLine) return false;
   if (e.decorators !== undefined && !e.decorators.every((d) => n.decorators.includes(d))) return false;
   return true;
 }

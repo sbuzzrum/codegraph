@@ -2440,6 +2440,22 @@ export class ToolHandler {
         registeredAt,
       };
     }
+    if (m?.synthesizedBy === 'vb6-event-binding') {
+      const ev = m.event ? `\`${String(m.event)}\`` : 'an event';
+      const how =
+        m.binding === 'withevents'
+          ? 'WithEvents'
+          : m.binding === 'ocx_event'
+            ? 'OCX control'
+            : m.binding === 'form_event'
+              ? 'form'
+              : 'control';
+      return {
+        label: `VB6 ${how} event ${ev} — producer → its \`_${String(m.event ?? 'Event')}\` handler (bound by naming convention)`,
+        compact: `dynamic: VB6 ${how} event ${ev}${at}`,
+        registeredAt,
+      };
+    }
     if (m?.synthesizedBy === 'interface-impl') {
       return {
         label: `interface/abstract dispatch — runs the implementation override (dynamic dispatch)`,
