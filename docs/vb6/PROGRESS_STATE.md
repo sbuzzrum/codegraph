@@ -3,9 +3,9 @@
 > Documento vivo. Fonte autoritativa dei requisiti: `PROMPT_CODEGRAPH_VB6_FORK_PERSONALE.md`
 > (nella dir padre del repo). Questo file traccia **piano**, **decisioni** e **stato**.
 
-Ultimo aggiornamento: 2026-08-14 — fase corrente: **2–3 in corso** (lingua `vb6`
-registrata e committata; extractor custom implementato per code/designer/progetto;
-**mancano** suite di conformità/test e l'intero resolver — Fase 4).
+Ultimo aggiornamento: 2026-08-14 — fase corrente: **4** (suite di conformità
+completa e verde; extractor validato e misurato; **manca** l'intero resolver
+VB6 — scope, eventi, provenance).
 
 Committato e pushato su `origin/main`:
 - `2d59953` — `docs(vb6): architecture audit, phased plan and implementation decisions`
@@ -16,7 +16,9 @@ Committato e pushato su `origin/main`:
 ## 0. Stato oggettivo del repo (audit iniziale)
 
 - Fork configurato: `origin` → `github.com/sbuzzrum/codegraph`, `upstream` → `colbymchenry/codegraph`
-  (push upstream disabilitato). Branch `main`, working tree pulito, allineato a `origin/main`.
+  (push upstream disabilitato con `git remote set-url --push upstream DISABLED_no_push_to_upstream`).
+  Branch `main`, working tree pulito, allineato a `origin/main`.
+  **Nota:** `upstream` risultava dichiarato qui ma non esisteva davvero nel repo; riconfigurato il 2026-08-14.
 - Tooling: Node 24 (engines repo: `>=20 <25`), `gh` autenticato come `sbuzzrum`, build `tsc` + copy-assets,
   test `vitest`.
 - **Nessun lavoro VB6 preesistente** (0 file, nessuna `docs/vb6/` prima di questo documento).
@@ -103,22 +105,39 @@ Regola d'oro (§21): in caso di ambiguità **preferire `unresolved`** a un edge 
 
 ## 3. Piano a fasi
 
-### Fase 1 — Audit & fondamenta *(quasi completa)*
+### Fase 1 — Audit & fondamenta *(completa)*
 - [x] Audit architettura extractor/registry/resolver/provenance/MCP.
 - [x] `docs/vb6/IMPLEMENTATION_DECISIONS.md` (mapping ontologia, scelta grammar D1, scope model). Committato.
-- [ ] `docs/vb6/VB6_SEMANTIC_MODEL.md` (nodi/relazioni/provenance definitivi). **Ancora da scrivere.**
-- **Commit:** `docs(vb6): architecture audit and semantic model` → parzialmente fatto (`2d59953`, manca SEMANTIC_MODEL).
+- [x] `docs/vb6/VB6_SEMANTIC_MODEL.md` — nodi, relazioni, marker `vb6:*`, modello eventi e provenance.
+      Ogni regola è pinnata da una fixture, quindi il documento non può divergere dal codice in silenzio.
+- **Commit:** `2d59953` + `test(vb6): add conformance suite`.
 
-### Fase 2 — Grammar & fixture di conformità *(in corso)*
+### Fase 2 — Grammar & fixture di conformità *(completa)*
 - [x] Registrare lingua `vb6` (types.ts + grammars.ts: estensioni `.bas/.cls/.frm/.ctl/.vbp/.vbg`, display
       name, liste supported/grammar-loaded; dispatch in `tree-sitter.ts`). **NB:** nessuna entry wasm (D1).
       Committato in `530b584`.
-- [ ] Suite conformità §7: 50 mini-progetti in `__tests__/fixtures/vb6/NN_*/` con oracolo machine-readable
-      (`expected.json`: nodi+edge attesi). Test runner che confronta graph prodotto vs atteso. **0 fixture, 0 test oggi.**
-- [ ] ~~Test grammar~~ → **N/A** (nessuna grammar tree-sitter, D1); sostituito da: test unitari dell'extractor sui costrutti core.
-- **Commit:** `feat(vb6): register language and grammar` fatto (`530b584`); `test(vb6): add conformance fixtures and oracle runner` **da fare.**
+- [x] Suite conformità §7: **55 mini-progetti** in `__tests__/fixtures/vb6/NN_*/` con oracolo
+      machine-readable (`expected.json`) e runner `__tests__/vb6-conformance.test.ts` che indicizza
+      ogni fixture con la pipeline reale (estrazione → resolution → SQLite) e confronta il graph
+      prodotto con quello atteso. Copre i 50 casi del prompt più 5 casi adversarial (§21).
+- [x] ~~Test grammar~~ → **N/A** (nessuna grammar tree-sitter, D1); sostituito dal runner di conformità,
+      che esercita l'extractor end-to-end.
+- **Commit:** `feat(vb6): register language and grammar` (`530b584`); `test(vb6): add conformance suite`.
 
-### Fase 3 — Extractor dichiarazioni & progetto *(implementato, non ancora testato)*
+#### Come funziona l'oracolo
+`expected.json` descrive la **semantica VB6 corretta**, non il comportamento odierno. Ogni fixture ha
+`"status"`:
+- `pass` → il graph deve già combaciare; se non combacia è una **regressione** e il test fallisce;
+- `known-gap` + `"gap"` (motivo) → la semantica non è ancora implementata: il runner verifica che il gap
+  sia **ancora presente** e fallisce con "promote to pass" appena viene chiuso.
+
+Il match è per sottoinsieme: `expect` deve trovare almeno un riscontro (o esattamente `count`), `forbid`
+nessuno. `forbid` è ciò che rende la suite utile contro i falsi positivi (§21).
+
+`VB6_CONFORMANCE_REPORT=1 npx vitest run __tests__/vb6-conformance.test.ts` rigenera
+`docs/vb6/VB6_CONFORMANCE.md` con le metriche §20.
+
+### Fase 3 — Extractor dichiarazioni & progetto *(implementato e validato)*
 > Realizzato come extractor custom line-based in `src/extraction/vb6-extractor.ts` (non `languages/vb6.ts`), per D1.
 - [x] `Vb6Extractor`: Sub/Function/Property (Get/Let/Set)/Event/Enum/Type(UDT)/Const/Variable/Declare,
       visibilità Public/Private/Friend/Static, return type; chiamate (`calls`), `references`, `RaiseEvent`,
@@ -126,10 +145,43 @@ Regola d'oro (§21): in caso di ambiguità **preferire `unresolved`** a un edge 
 - [x] `Vb6ProjectExtractor` — `.vbp`/`.vbg`: nodo progetto + membership/reference.
 - [x] `Vb6FormExtractor` — `.frm`/`.ctl`: Form/UserControl + controlli (tipo, nome istanza, nesting,
       control array `Index`, OCX ref) dalla designer section `Begin…End`; corpo codice delegato a `Vb6Extractor`.
-- [ ] **Validazione:** nessun test ancora esercita questi extractor; correttezza da confermare in Fase 2/5.
+- [x] **Validazione (2026-08-14):** i tre extractor sono ora esercitati dalle 55 fixture. Risultato:
+      **29 fixture passano, 26 sono gap documentati, 0 parse error, 0 regressioni** sulle altre lingue.
+      Funzionano dichiarazioni, visibilità, designer `.frm/.ctl` con nesting e control array, `.vbp`/`.vbg`,
+      `New`/`As New`, `Implements`, line continuation, commenti.
 - **Commit:** confluiti in `530b584` (`feat(vb6): register language and add custom extractors`).
 
-### Fase 4 — Resolver, scope, eventi, COM
+#### Difetti misurati dell'extractor (da correggere in Fase 4)
+Ordinati per gravità; ognuno ha la sua fixture.
+
+| # | Difetto | Effetto | Fixture |
+|---|---|---|---|
+| E1 | chiamata qualificata senza parentesi (`ModA.Process`, `Form1.Reload`, `obj.Metodo arg`) risolta sul **qualificatore** | edge falso verso il modulo/form/variabile, chiamata vera persa | 26, 29, 30 |
+| E2 | `With … End With` ignorato: `.Membro` non produce alcun riferimento | flusso perso | 24 |
+| E3 | argomenti nominati (`Nome:=valore`) impediscono il rilevamento della chiamata | falso negativo | 33 |
+| E4 | le **label** di riga (`ErrHandler:`) sono lette come chiamate implicite | riferimento inventato | 38 |
+| E5 | le **stringhe letterali** non sono neutralizzate prima della ricerca di chiamate | riferimento inventato | 54 |
+| E6 | l'indicizzazione di array (`mItems(3)`) è indistinguibile da una chiamata | edge falso | 55 |
+| E7 | tipi intrinseci (`Long`, `String`, …) emessi come riferimenti che non si risolveranno mai | rumore in `unresolved_refs`, metriche §20 falsate | 05 |
+| E8 | dichiarazioni locali (`Dim`/`Static`/`Const` in procedura) non estratte come nodi | simboli mancanti | 13 |
+| E9 | `Declare` non cattura il tipo di ritorno | attributo mancante | 49 |
+| E10 | control array: un nodo per elemento, tutti con lo stesso `qualifiedName` | simboli duplicati | 18 |
+| E11 | nessun nodo per COM/OCX reference: CLSID e typelib estratti ma non interrogabili | §8/§15 non soddisfatti | 40, 47 |
+| E12 | ProgID di `CreateObject` scartato: early e late binding indistinguibili | §15 non soddisfatto | 41 |
+
+### Fase 4 — Resolver, scope, eventi, COM *(prossima)*
+
+#### Difetti misurati della resolution (stato: nessun resolver VB6, si usa il name-matcher generico)
+
+| # | Difetto | Effetto | Fixture |
+|---|---|---|---|
+| R1 | nessuno scope: si risolve per uguaglianza di nome | `Private` raggiunta da un altro modulo; con due omonimi private ne sceglie una **arbitrariamente** invece di lasciare unresolved | 02, 31, 51 |
+| R2 | membri di classe raggiungibili con nome non qualificato dall'esterno | edge impossibile in VB6 | 31 |
+| R3 | chiamate late-bound (`Dim o As Object`) legate a un membro omonimo qualsiasi | euristica presentata come call statica | 43 |
+| R4 | nessun binding di eventi (controlli, Form, `WithEvents`, OCX) | §13 completamente scoperto | 16, 17, 22, 23, 39, 52 |
+| R5 | `provenance` sempre `NULL` sugli edge VB6 | §14 non soddisfatto | 21 |
+| R6 | `UnresolvedReference.metadata` non sopravvive al giro in DB (**`unresolved_refs` non ha colonna `metadata`**) | gli hint dell'extractor (`raises_event`, `member_call`, `ocx_type`) non arrivano mai all'edge | 21 |
+
 - [ ] Scope resolution (§9): procedure/module/class/form/project scope, Public/Private/Friend/Static,
       qualified vs unqualified, moduli globali, omonimi in scope diversi.
 - [ ] Costrutti (§16): `With`, `As New`/`New`, `Implements`, `Call`/chiamata implicita, named args, Optional,
@@ -170,5 +222,15 @@ Regola d'oro (§21): in caso di ambiguità **preferire `unresolved`** a un edge 
 - 2026-08-14: lingua `vb6` registrata (types.ts/grammars.ts/tree-sitter.ts) ed extractor custom
   implementato (`vb6-extractor.ts`: code + designer + progetto). Typecheck `tsc --noEmit` verde.
   Committato in due unità logiche (`2d59953` docs, `530b584` feat) e **pushato su `origin/main`**.
-  **Prossimi passi:** (1) `VB6_SEMANTIC_MODEL.md`; (2) suite di conformità + test runner (Fase 2);
-  (3) resolver scope/eventi/COM (Fase 4). Nulla è ancora testato: gli extractor sono da validare.
+  Nulla ancora testato: gli extractor erano da validare.
+- 2026-08-14 (audit): ricostruito l'ambiente (`node_modules`/`dist` assenti), rieseguita la suite
+  (**2901 test verdi, 0 regressioni**) e verificato il comportamento reale indicizzando mini-progetti VB6.
+  L'estrazione si è rivelata più solida del previsto; la **resolution** no: risolve per nome e produce
+  edge falsi (R1–R3). Riconfigurato il remote `upstream` che risultava dichiarato ma assente.
+- 2026-08-14 (Fase 2): scritta la suite di conformità — 55 fixture + runner con oracolo.
+  Stato misurato: **29 pass, 26 known-gap, 0 fail, 0 parse error**; 127 assertion attese, 97 soddisfatte,
+  30 falsi negativi, 10 falsi positivi. Le fixture hanno scoperto tre difetti non previsti dall'audit:
+  argomenti nominati (E3), label di riga (E4), identificatori dentro stringhe (E5).
+  Scritto `VB6_SEMANTIC_MODEL.md` fissando il modello eventi e la provenance che il resolver dovrà produrre.
+  **Prossimo passo:** Fase 4 — correggere E1–E6 nell'extractor, poi il resolver VB6 (scope, eventi,
+  provenance persistita). Ogni fix chiude una fixture `known-gap`, che va promossa a `pass`.
