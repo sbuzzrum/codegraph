@@ -115,6 +115,7 @@ export const LANGUAGES = [
   'cfquery',
   'cobol',
   'vbnet',
+  'vb6',
   'erlang',
   'terraform',
   'unknown',
@@ -361,6 +362,17 @@ export interface UnresolvedReference {
 
   /** Possible qualified names it might resolve to */
   candidates?: string[];
+
+  /**
+   * Optional in-memory hints attached at extraction time (mirrors
+   * `Edge.metadata`). Used by language resolvers that need to carry provenance
+   * or role detail from the extractor to the edge they synthesize — e.g. VB6
+   * tags a ref as `raises_event` / `member_call` / `ocx_type` so the resolved
+   * edge records how it was derived (prompt §14). Not persisted across a DB
+   * round-trip; consumed by the resolver pass that runs on freshly-extracted
+   * references.
+   */
+  metadata?: Record<string, unknown>;
 
   /**
    * `unresolved_refs.id` when this ref was loaded from the database. Post-pass

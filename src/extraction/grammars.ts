@@ -11,7 +11,7 @@ import * as fsp from 'fs/promises';
 import { Parser, Language as WasmLanguage } from 'web-tree-sitter';
 import { Language } from '../types';
 
-export type GrammarLanguage = Exclude<Language, 'svelte' | 'vue' | 'astro' | 'liquid' | 'razor' | 'yaml' | 'twig' | 'xml' | 'properties' | 'unknown'>;
+export type GrammarLanguage = Exclude<Language, 'svelte' | 'vue' | 'astro' | 'liquid' | 'razor' | 'vb6' | 'yaml' | 'twig' | 'xml' | 'properties' | 'unknown'>;
 
 /**
  * WASM filename map — maps each language to its .wasm grammar file
@@ -154,6 +154,19 @@ export const EXTENSION_MAP: Record<string, Language> = {
   // VB.NET: vendored grammar (patched govindbanura/tree-sitter-vbnet) — classes,
   // modules, interfaces, structures, properties, events, Handles clauses, LINQ.
   '.vb': 'vbnet',
+  // Visual Basic 6 / Classic VB. No adequate tree-sitter grammar (the VB.NET
+  // grammar errors on VB6-core constructs: `Property Get/Let/Set`, `Event`,
+  // `WithEvents`, `Implements`, `Type…End Type`, `As New`, `Declare`, and the
+  // form designer header). Parsed by the custom Vb6 extractors (see
+  // vb6-extractor.ts) — code modules/classes (.bas/.cls), form/usercontrol
+  // designers (.frm/.ctl), and project files (.vbp/.vbg). Routed in
+  // extractFromSource, NOT via the tree-sitter EXTRACTORS map.
+  '.bas': 'vb6',
+  '.cls': 'vb6',
+  '.frm': 'vb6',
+  '.ctl': 'vb6',
+  '.vbp': 'vb6',
+  '.vbg': 'vb6',
   // Erlang: modules (.erl) and header files (.hrl). Vendored WhatsApp/
   // tree-sitter-erlang grammar (the ELP grammar).
   '.erl': 'erlang',
@@ -532,6 +545,7 @@ export function isLanguageSupported(language: Language): boolean {
   if (language === 'astro') return true; // custom extractor (frontmatter/script block delegation)
   if (language === 'liquid') return true; // custom regex extractor
   if (language === 'razor') return true; // custom RazorExtractor (.cshtml/.razor markup)
+  if (language === 'vb6') return true; // custom Vb6 extractors (.bas/.cls/.frm/.ctl/.vbp/.vbg), no wasm grammar
   if (language === 'yaml') return true; // file-level tracking only; Drupal routing extraction via framework resolver
   if (language === 'twig') return true; // file-level tracking only
   if (language === 'xml') return true; // MyBatis mapper extractor
@@ -545,6 +559,7 @@ export function isLanguageSupported(language: Language): boolean {
  */
 export function isGrammarLoaded(language: Language): boolean {
   if (language === 'svelte' || language === 'vue' || language === 'astro' || language === 'liquid' || language === 'razor') return true;
+  if (language === 'vb6') return true; // custom extractor, no WASM grammar needed
   if (language === 'yaml' || language === 'twig') return true; // no WASM grammar needed
   if (language === 'xml' || language === 'properties') return true; // no WASM grammar needed
   return languageCache.has(language);
@@ -567,7 +582,7 @@ export function isFileLevelOnlyLanguage(language: Language): boolean {
  * Get all supported languages (those with grammar definitions).
  */
 export function getSupportedLanguages(): Language[] {
-  return [...(Object.keys(WASM_GRAMMAR_FILES) as GrammarLanguage[]), 'svelte', 'vue', 'astro', 'liquid'];
+  return [...(Object.keys(WASM_GRAMMAR_FILES) as GrammarLanguage[]), 'svelte', 'vue', 'astro', 'liquid', 'vb6'];
 }
 
 /**
@@ -652,6 +667,7 @@ export function getLanguageDisplayName(language: Language): string {
     cfquery: 'CFQuery (SQL)',
     cobol: 'COBOL',
     vbnet: 'Visual Basic .NET',
+    vb6: 'Visual Basic 6',
     erlang: 'Erlang',
     terraform: 'Terraform',
     arkts: 'ArkTS',

@@ -30,6 +30,7 @@ import { DfmExtractor } from './dfm-extractor';
 import { VueExtractor } from './vue-extractor';
 import { MyBatisExtractor } from './mybatis-extractor';
 import { CfmlExtractor } from './cfml-extractor';
+import { extractVb6File } from './vb6-extractor';
 import { tryKernelExtract, takeDeferredPreParse } from './kernel';
 import {
   getAllFrameworkResolvers,
@@ -6740,6 +6741,11 @@ export function extractFromSource(
     // Use custom extractor for DFM/FMX form files
     const extractor = new DfmExtractor(filePath, source);
     result = extractor.extract();
+  } else if (detectedLanguage === 'vb6') {
+    // Custom VB6 extractors: code modules/classes (.bas/.cls), form/usercontrol
+    // designers (.frm/.ctl), and project files (.vbp/.vbg). No tree-sitter
+    // grammar — see docs/vb6/IMPLEMENTATION_DECISIONS.md (D1).
+    result = extractVb6File(filePath, source);
   } else {
     // Native-kernel route (docs/design/rust-kernel-migration-plan.md): gated
     // per language, null when not routed/available or on a kernel error —
