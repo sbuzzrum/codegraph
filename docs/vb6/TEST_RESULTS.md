@@ -62,7 +62,7 @@ npm test
 
 ```
 Test Files  164 passed | 15 skipped (179)
-     Tests  2969 passed | 178 skipped (3147)
+     Tests  2970 passed | 178 skipped (3148)
 ```
 
 No failures. VB6 support adds a language, three extractors, a resolver branch
@@ -186,11 +186,28 @@ None of it is resolvable without reading type libraries, which is a deliberate
 boundary (`VB6_LIMITATIONS.md`). Resolving `.Text` to some same-named property
 elsewhere in the project would be exactly the false certainty §21 forbids.
 
-A directory-proximity fallback was measured for the files that belong to no
-indexed `.vbp` (20% of the tree — orphans and backups are normal in a codebase
-this old). It would recover 5,394 references: **1.7%** of the unresolved set,
-in exchange for a heuristic that can bind the wrong target. Not implemented —
-the trade is bad at that ratio.
+### The directory fallback, and why it was reversed
+
+A directory-proximity fallback for files belonging to no `.vbp` was first
+measured against the total unresolved set — 1.7% — and rejected as a bad trade.
+That judgement used the wrong denominator. Those references are *internal
+calls*, the part that carries the value, and against the call-graph gap they
+are worth far more.
+
+Two further facts settled it. The orphan files are not junk: 113 of them are
+used by the rest of the code, one with 617 incoming references. And their
+projects are not merely unindexed — the `.vbp` files declare 864 members that
+do not exist anywhere in the tree, so those projects have drifted from the
+files. There is no `.vbp` to find; the choice is proximity or nothing.
+
+Implemented with three gates: only when the CALLER belongs to no indexed
+project, only when exactly one candidate sits in the same directory, and the
+resulting edge is marked `provenance: 'heuristic'` with `metadata.scope =
+'directory'` so it never reads as parsed fact. Visibility still applies —
+a spot check confirms **zero** heuristic edges reaching a `Private` procedure
+of another file.
+
+Result: 4,416 edges, internal call-graph coverage 83.1% → **86.6%** (96.8% net).
 
 ### Round 3 — measuring the right thing
 
@@ -199,11 +216,11 @@ between two procedures of the project (which must always resolve). The metric
 that reflects use is **internal call-graph coverage**: how many calls to
 procedures of the project are edges. Measuring it changed what got worked on.
 
-| | round 2 | + parameters & global qualifiers | + chain roots | + keyword fix |
-|---|---|---|---|---|
-| Resolution rate | 55.1% | 65.7% | 70.8% | **71.3%** |
-| Internal call graph | 66.7% | 77.6% | 82.4% | **83.1%** |
-| …excluding calls VB6 itself cannot reach | — | — | 92.7% | **92.8%** |
+| | round 2 | + parameters & global qualifiers | + chain roots | + keyword & argument fixes | + directory fallback |
+|---|---|---|---|---|---|
+| Resolution rate | 55.1% | 65.7% | 70.8% | 71.3% | **72.3%** |
+| Internal call graph | 66.7% | 77.6% | 82.4% | 83.1% | **86.6%** |
+| …excluding calls VB6 itself cannot reach | — | — | 92.7% | 92.8% | **96.8%** |
 
 Three defects, each found by asking where the missed calls went:
 

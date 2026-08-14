@@ -1,0 +1,3 @@
+Type=Exe
+Module=Util; Util.bas
+Name="AppA"

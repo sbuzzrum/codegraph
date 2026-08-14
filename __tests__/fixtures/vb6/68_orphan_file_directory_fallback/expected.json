@@ -1,0 +1,22 @@
+{
+  "description": "a file in no project resolves by directory proximity, and the edge is marked heuristic",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "SharedHelper",
+        "fromFile": "Orphan.bas",
+        "toFile": "Util.bas",
+        "provenance": "heuristic",
+        "metadata": { "scope": "directory" }
+      }
+    ]
+  },
+  "forbid": {
+    "edges": [
+      { "kind": "calls", "from": "Run", "to": "SharedHelper", "provenance": null }
+    ]
+  }
+}

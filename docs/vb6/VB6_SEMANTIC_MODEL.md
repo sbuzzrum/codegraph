@@ -108,6 +108,7 @@ than widening the domain, and carries its own detail in `metadata`.
 | SYNTHESIZED | `metadata.synthesizedBy` |
 | HEURISTIC | `provenance = 'heuristic'` |
 | UNRESOLVED | no edge — the reference stays in `unresolved_refs` |
+| directory proximity (orphan files) | `provenance = 'heuristic'`, `metadata.scope = 'directory'` |
 
 **UNRESOLVED is a result, not a failure.** Where VB6 semantics cannot
 determine a target — a `Private` procedure seen from another module, a

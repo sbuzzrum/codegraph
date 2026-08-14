@@ -14,9 +14,9 @@ The engine is complete, conformant, free of regressions, and now validated
 against a production VB6 codebase: 2,163 files, 141k nodes, 321k edges, **zero
 files that failed to yield symbols**, indexed in under ten seconds.
 
-That validation exposed eleven real defects — all of them general, none of them
+That validation exposed twelve real defects — all of them general, none of them
 specific to that codebase. Each became a generic fixture, then a fix, then a
-re-validation, in the order §24 prescribes. The conformance suite is 68/68.
+re-validation, in the order §24 prescribes. The conformance suite is 69/69.
 
 Use it, having read `VB6_LIMITATIONS.md` first. The limits are deliberate and
 each states what happens instead of guessing — and one of them shapes
@@ -71,23 +71,23 @@ never at runtime.
 
 ### Automated tests — **good**
 
-68 conformance fixtures, all passing: 0 false negatives, 0 false positives, 0
+69 conformance fixtures, all passing: 0 false negatives, 0 false positives, 0
 parse errors. The oracle is machine-readable and states
 correct VB6 semantics rather than current behaviour, and its `forbid` half
 tests specifically for edges that must *not* exist — which is what a name
 matcher gets wrong and what §21 ranks above recall.
 
-Eighteen fixtures beyond the specification's 50 cover cases found while building
+Nineteen fixtures beyond the specification's 50 cover cases found while building
 and while validating: private homonyms, cross-binding of same-named events,
 line continuation, strings and comments, array indexing, body ranges, and —
 from the real codebase — project-scope isolation, implicit visibility,
 cross-module array access, member access on an external type, picking a
 UserControl by the OCX library that declares it, parameters as qualifiers,
-global object qualifiers, member chains, a keyword read as a qualifier, choosing between duplicate copies of a type, and the arguments of RaiseEvent and With.
+global object qualifiers, member chains, a keyword read as a qualifier, choosing between duplicate copies of a type, the arguments of RaiseEvent and With, and resolution for files belonging to no project.
 
 ### Regressions — **none**
 
-`npm test`: 164 files, 2969 tests passing, 0 failures. No existing language is
+`npm test`: 164 files, 2970 tests passing, 0 failures. No existing language is
 affected (§19).
 
 ### Documentation — **complete**
@@ -107,9 +107,9 @@ produces no edge, and synthesized event bindings are marked as synthesized
 with their wiring site.
 
 On the production codebase: every file parsed, 12,229 event bindings were
-recovered, and three rounds of fixes raised resolution from 28.5% to **71.3%**.
-The measure that matters more is **internal call-graph coverage — 83.1%**, or
-**92.7%** once the calls VB6 itself cannot reach unqualified are excluded.
+recovered, and three rounds of fixes raised resolution from 28.5% to **72.3%**.
+The measure that matters more is **internal call-graph coverage — 86.6%**, or
+**96.8%** once the calls VB6 itself cannot reach unqualified are excluded.
 What remains unresolved is names with no symbol in the project: VB6 intrinsics,
 COM methods, and the type names of standard controls. Full numbers in
 `TEST_RESULTS.md`.

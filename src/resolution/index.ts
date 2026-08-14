@@ -1135,6 +1135,7 @@ export class ReferenceResolver {
         kind,
         line: ref.original.line,
         column: ref.original.column,
+        ...(ref.provenance ? { provenance: ref.provenance } : {}),
         metadata: {
           // Language-resolver detail first: it records how the scope decision
           // was made, and must never shadow the standard keys below.

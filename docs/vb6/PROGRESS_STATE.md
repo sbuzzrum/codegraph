@@ -7,9 +7,9 @@ Ultimo aggiornamento: 2026-08-14 — **tutte le fasi completate, §24 inclusa**.
 Motore VB6 completo (extractor + resolver + binding eventi), MCP verificato,
 documentazione e assessment prodotti, **validazione real-world eseguita** su una
 codebase VB6 di produzione (2.163 file, 0 file non parsati).
-Suite di conformità **68/68**, 0 gap, 0 falsi positivi, 0 regressioni.
-Su codebase reale: tasso di risoluzione **71,3%**, copertura del call graph interno **83,1%**
-(**92,7%** escludendo le chiamate che VB6 stesso non può raggiungere senza qualificatore).
+Suite di conformità **69/69**, 0 gap, 0 falsi positivi, 0 regressioni.
+Su codebase reale: tasso di risoluzione **72,3%**, copertura del call graph interno **86,6%**
+(**96,8%** escludendo le chiamate che VB6 stesso non può raggiungere senza qualificatore).
 Giudizio (§25): **READY FOR USE**.
 
 Committato e pushato su `origin/main`:

@@ -103,18 +103,23 @@ export class Vb6Resolver {
       // by the very resolution pass that asks this question, so at this point
       // most of them do not exist yet.
       for (const file of projectMemberFiles(project.docstring)) {
-        let owners = map.get(file);
+        // Keyed lower-case: VB6 is a Windows language and its `.vbp` paths are
+        // case-insensitive, so a project that declares `SRC/Form.frm` for a
+        // file stored as `Src/Form.frm` is correct there and must not lose its
+        // membership just because the index is built on a case-sensitive
+        // filesystem.
+        let owners = map.get(file.toLowerCase());
         if (!owners) {
           owners = new Set();
-          map.set(file, owners);
+          map.set(file.toLowerCase(), owners);
         }
         owners.add(project.id);
       }
       // The `.vbp` itself belongs to its project.
-      let own = map.get(project.filePath);
+      let own = map.get(project.filePath.toLowerCase());
       if (!own) {
         own = new Set();
-        map.set(project.filePath, own);
+        map.set(project.filePath.toLowerCase(), own);
       }
       own.add(project.id);
     }
@@ -137,14 +142,14 @@ export class Vb6Resolver {
   private rankTypes(types: Node[], callerFile: string): Node[] {
     const rank = (n: Node): number => {
       if (this.shareProject(callerFile, n.filePath) === true) return 0;
-      return this.projectIndex().has(n.filePath) ? 1 : 2;
+      return this.projectIndex().has(n.filePath.toLowerCase()) ? 1 : 2;
     };
     return [...types].sort((a, b) => rank(a) - rank(b));
   }
 
   /** True when `file` is part of a project whose NAME is `projectName`. */
   private belongsToProjectNamed(file: string, projectName: string): boolean {
-    const owners = this.projectIndex().get(file);
+    const owners = this.projectIndex().get(file.toLowerCase());
     if (!owners) return false;
     const wanted = projectName.toLowerCase();
     for (const id of owners) {
@@ -161,8 +166,8 @@ export class Vb6Resolver {
    */
   private shareProject(a: string, b: string): boolean | null {
     const index = this.projectIndex();
-    const left = index.get(a);
-    const right = index.get(b);
+    const left = index.get(a.toLowerCase());
+    const right = index.get(b.toLowerCase());
     if (!left || !right) return null;
     for (const project of left) if (right.has(project)) return true;
     return false;
@@ -328,10 +333,27 @@ export class Vb6Resolver {
     let pool = dedupe(candidates);
     if (pool.length === 0) return null;
 
+    let byDirectory = false;
     if (pool.length > 1) {
       // Candidates outside the caller's project are not candidates at all.
       const ownProject = pool.filter((n) => this.shareProject(ref.filePath, n.filePath) === true);
       if (ownProject.length > 0) pool = ownProject;
+      else if (!this.projectIndex().has(ref.filePath.toLowerCase())) {
+        // The CALLER belongs to no indexed `.vbp` — a normal state in an old
+        // tree, where sources outlive the projects that once listed them. The
+        // project rule cannot apply, and with several same-named candidates the
+        // alternative to guessing is losing the call entirely.
+        //
+        // Directory proximity is the one signal left, and in VB6 it is a strong
+        // one: a project's files live together. Applied ONLY here, ONLY when it
+        // singles out one candidate, and the resulting edge is marked
+        // `heuristic` so it never reads as a fact parsed from the source.
+        const sameDir = pool.filter((n) => dirOf(n.filePath) === dirOf(ref.filePath));
+        if (sameDir.length === 1) {
+          pool = sameDir;
+          byDirectory = true;
+        }
+      }
     }
 
     if (pool.length > 1) {
@@ -351,6 +373,7 @@ export class Vb6Resolver {
 
     const target = pool[0]!;
     const extra: Record<string, unknown> = { ...meta };
+    if (byDirectory) extra.scope = 'directory';
     // A reference to an Event declaration is a RaiseEvent site.
     if (ref.referenceKind === 'references' && target.decorators?.includes('vb6:event')) {
       extra.vb6 = 'raises_event';
@@ -358,8 +381,9 @@ export class Vb6Resolver {
     return {
       original: ref,
       targetNodeId: target.id,
-      confidence: meta.scope === 'project' ? 0.9 : 0.95,
+      confidence: byDirectory ? 0.6 : meta.scope === 'project' ? 0.9 : 0.95,
       resolvedBy,
+      ...(byDirectory ? { provenance: 'heuristic' as const } : {}),
       metadata: extra,
     };
   }
@@ -405,6 +429,12 @@ export class Vb6Resolver {
     const ownProject = globals.filter((n) => this.shareProject(filePath, n.filePath) === true);
     return ownProject.length === 1 ? ownProject[0] : undefined;
   }
+}
+
+/** Directory of a file path, for the proximity fallback. */
+function dirOf(filePath: string): string {
+  const i = filePath.lastIndexOf('/');
+  return i === -1 ? '' : filePath.slice(0, i);
 }
 
 /** The qualifier carried by the extractor in `candidates` (`c.Compute` → `c`). */

@@ -101,12 +101,20 @@ for those files the project filter cannot apply: if several same-named
 candidates exist across the index, the reference stays unresolved.
 
 Measured on a real 2,163-file codebase: 79.7% of source files were covered by
-`.vbp` membership. A directory-proximity fallback for the rest would recover
-1.7% of the unresolved set at the cost of a heuristic that can bind the wrong
-target, so it is deliberately not implemented (§21 ranks unresolved above a
-false edge).
+`.vbp` membership, and the projects themselves had drifted — they declare 864
+member files that no longer exist anywhere in the tree.
 
-**Consequence.** Expect weaker resolution for files that belong to no project.
+For a file in no project the language rule cannot apply, so resolution falls
+back to **directory proximity**, under three gates: only when the caller
+belongs to no indexed project, only when exactly one candidate sits in the
+same directory, and the edge is marked `provenance: 'heuristic'` with
+`metadata.scope = 'directory'`. Visibility still applies, so it can never
+reach a `Private` procedure of another file.
+
+**Consequence.** Calls from orphan files do resolve, but through a weaker
+signal that is labelled as such. Treat those edges as strong hints rather than
+parsed facts — they are the one place in the VB6 graph where proximity, not
+semantics, chose the target.
 
 **Index the whole tree, not one project at a time.** This was measured, because
 the opposite seemed likely: indexing a single `.vbp` in isolation was expected

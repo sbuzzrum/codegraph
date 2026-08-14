@@ -44,6 +44,12 @@ export interface ResolvedRef {
   /** How it was resolved */
   resolvedBy: 'exact-match' | 'import' | 'qualified-name' | 'framework' | 'fuzzy' | 'instance-method' | 'file-path' | 'function-ref';
   /**
+   * Provenance for the produced edge. Set it when the resolution was not a
+   * plain reading of the source — a heuristic tie-break, say — so consumers
+   * can tell a derived edge from a parsed one instead of trusting both alike.
+   */
+  provenance?: 'tree-sitter' | 'scip' | 'heuristic';
+  /**
    * Extra detail to merge into the edge's metadata. Lets a language resolver
    * record HOW it decided — which scope rule applied, what the reference
    * really was — without every such fact needing its own column. Merged under

@@ -7,13 +7,13 @@
 
 | Metric | Value |
 |---|---|
-| Fixtures | 67 |
-| Passing | 67 |
+| Fixtures | 68 |
+| Passing | 68 |
 | Known gaps (semantics not implemented yet) | 0 |
 | Failing (regression — oracle says pass) | 0 |
 | Ready to promote (gap closed) | 0 |
-| Expected assertions | 156 |
-| Assertions satisfied | 156 |
+| Expected assertions | 157 |
+| Assertions satisfied | 157 |
 | False negatives (expected, missing) | 0 |
 | False positives (forbidden, present) | 0 |
 | Unresolved references | 24 |
@@ -90,3 +90,4 @@
 | 65_with_member_after_keyword | pass | 2 | 2 | 0 | 0 | 0 |  |
 | 66_duplicate_type_prefers_project | pass | 1 | 1 | 0 | 0 | 1 |  |
 | 67_args_of_raiseevent_and_with | pass | 3 | 3 | 0 | 0 | 1 |  |
+| 68_orphan_file_directory_fallback | pass | 1 | 1 | 0 | 0 | 0 |  |
