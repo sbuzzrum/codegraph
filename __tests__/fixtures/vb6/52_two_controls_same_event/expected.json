@@ -1,0 +1,35 @@
+{
+  "description": "two controls sharing an event name each bind to their own handler only",
+  "status": "known-gap",
+  "gap": "no event model, so neither binding exists (prompt §13, §21)",
+  "expect": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "cmdSave",
+        "to": "cmdSave_Click",
+        "provenance": "heuristic"
+      },
+      {
+        "kind": "calls",
+        "from": "cmdCancel",
+        "to": "cmdCancel_Click",
+        "provenance": "heuristic"
+      }
+    ]
+  },
+  "forbid": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "cmdSave",
+        "to": "cmdCancel_Click"
+      },
+      {
+        "kind": "calls",
+        "from": "cmdCancel",
+        "to": "cmdSave_Click"
+      }
+    ]
+  }
+}

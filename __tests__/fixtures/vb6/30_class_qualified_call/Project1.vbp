@@ -1,0 +1,4 @@
+Type=Exe
+Class=Class1; Class1.cls
+Module=Module1; Module1.bas
+Name="Proj"

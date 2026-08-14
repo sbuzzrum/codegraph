@@ -1,0 +1,35 @@
+{
+  "description": "two same-named Private functions stay local; an outside caller resolves to neither",
+  "status": "known-gap",
+  "gap": "the caller in ModC is bound to ModA.Compute although both candidates are Private — a false edge where UNRESOLVED is the only correct answer (prompt §21)",
+  "expect": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "RunA",
+        "to": "Compute",
+        "toFile": "ModA.bas"
+      },
+      {
+        "kind": "calls",
+        "from": "RunB",
+        "to": "Compute",
+        "toFile": "ModB.bas"
+      }
+    ],
+    "unresolved": [
+      {
+        "name": "Compute",
+        "from": "RunC"
+      }
+    ]
+  },
+  "forbid": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "RunC"
+      }
+    ]
+  }
+}

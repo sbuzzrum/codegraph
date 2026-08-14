@@ -1,0 +1,21 @@
+{
+  "description": "a Function carries its return type; intrinsic types generate no dangling reference",
+  "status": "known-gap",
+  "gap": "intrinsic VB6 types (Long/String/…) are emitted as references and rot in unresolved_refs (prompt §20 — they inflate the metrics)",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "method",
+        "name": "Square",
+        "returnType": "Long"
+      }
+    ]
+  },
+  "forbid": {
+    "unresolved": [
+      {
+        "name": "Long"
+      }
+    ]
+  }
+}

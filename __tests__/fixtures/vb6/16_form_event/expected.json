@@ -1,0 +1,27 @@
+{
+  "description": "Control_Event names bind the control to its handler",
+  "status": "known-gap",
+  "gap": "no event model: Control_Event handlers are unlinked methods (prompt §13)",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "method",
+        "name": "cmdOk_Click",
+        "visibility": "private"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "cmdOk",
+        "to": "cmdOk_Click",
+        "provenance": "heuristic",
+        "metadata": {
+          "synthesizedBy": "vb6-event-binding",
+          "binding": "control_event",
+          "event": "Click"
+        }
+      }
+    ]
+  }
+}

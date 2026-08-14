@@ -1,0 +1,23 @@
+{
+  "description": "the Object= line of a .frm ties the form to the OCX component it uses",
+  "status": "known-gap",
+  "gap": "no OCXReference node exists, so the form-to-component link stays an unresolved ref (prompt §8, §15)",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "field",
+        "name": "MSComm1",
+        "decorators": [
+          "vb6:ocx"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "kind": "references",
+        "from": "Form1",
+        "to": "MSCOMM32"
+      }
+    ]
+  }
+}

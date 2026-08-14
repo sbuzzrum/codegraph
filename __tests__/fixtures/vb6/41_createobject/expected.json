@@ -1,0 +1,20 @@
+{
+  "description": "CreateObject records the ProgID as late-bound and invents no local target",
+  "status": "known-gap",
+  "gap": "the ProgID string is discarded: CreateObject is recorded as a plain unresolved call, so early vs late binding cannot be told apart (prompt §15)",
+  "expect": {
+    "unresolved": [
+      {
+        "name": "Excel.Application"
+      }
+    ]
+  },
+  "forbid": {
+    "edges": [
+      {
+        "kind": "instantiates",
+        "from": "Run"
+      }
+    ]
+  }
+}

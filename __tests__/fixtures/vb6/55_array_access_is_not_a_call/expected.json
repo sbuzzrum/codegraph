@@ -1,0 +1,35 @@
+{
+  "description": "indexing an array is not a procedure call",
+  "status": "known-gap",
+  "gap": "array indexing is indistinguishable from a call in the extractor, so mItems(3) is recorded as a call (prompt §21)",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "field",
+        "name": "mItems"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "references",
+        "from": "Run",
+        "to": "mItems"
+      }
+    ]
+  },
+  "forbid": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "mItems"
+      }
+    ],
+    "unresolved": [
+      {
+        "name": "mItems",
+        "kind": "calls"
+      }
+    ]
+  }
+}

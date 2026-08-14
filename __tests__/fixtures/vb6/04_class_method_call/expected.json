@@ -1,0 +1,38 @@
+{
+  "description": "methods on a class instance resolve to the class members",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "class",
+        "name": "Class1",
+        "file": "Class1.cls"
+      },
+      {
+        "kind": "method",
+        "name": "Compute",
+        "visibility": "public",
+        "file": "Class1.cls"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "instantiates",
+        "from": "UseClass",
+        "to": "Class1"
+      },
+      {
+        "kind": "calls",
+        "from": "UseClass",
+        "to": "Compute",
+        "toFile": "Class1.cls"
+      },
+      {
+        "kind": "calls",
+        "from": "UseClass",
+        "to": "GetValue",
+        "toFile": "Class1.cls"
+      }
+    ]
+  }
+}

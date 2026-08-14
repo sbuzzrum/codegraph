@@ -1,0 +1,31 @@
+{
+  "description": "an OCX control is typed from its library and its event handler binds to it",
+  "status": "known-gap",
+  "gap": "no event model for OCX controls (prompt §13 HANDLES_OCX_EVENT)",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "field",
+        "name": "MSComm1",
+        "decorators": [
+          "vb6:control",
+          "vb6:ocx"
+        ],
+        "returnType": "MSComm"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "MSComm1",
+        "to": "MSComm1_OnComm",
+        "provenance": "heuristic",
+        "metadata": {
+          "synthesizedBy": "vb6-event-binding",
+          "binding": "ocx_event",
+          "event": "OnComm"
+        }
+      }
+    ]
+  }
+}

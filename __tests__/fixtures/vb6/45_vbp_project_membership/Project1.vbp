@@ -1,0 +1,5 @@
+Type=Exe
+Module=Module1; Module1.bas
+Class=Class1; Class1.cls
+Form=Form1.frm
+Name="MyApp"

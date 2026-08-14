@@ -1,0 +1,16 @@
+{
+  "description": "Property Let is a property member tagged with its accessor",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "property",
+        "name": "Value",
+        "visibility": "public",
+        "decorators": [
+          "vb6:property-let"
+        ]
+      }
+    ]
+  }
+}

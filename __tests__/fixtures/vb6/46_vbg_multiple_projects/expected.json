@@ -1,0 +1,41 @@
+{
+  "description": "a .vbg groups several projects and links to each of them",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "namespace",
+        "name": "Group",
+        "decorators": [
+          "vb6:projectgroup"
+        ]
+      },
+      {
+        "kind": "module",
+        "name": "Client",
+        "decorators": [
+          "vb6:project"
+        ]
+      },
+      {
+        "kind": "module",
+        "name": "Server",
+        "decorators": [
+          "vb6:project"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "kind": "imports",
+        "from": "Group",
+        "to": "Client"
+      },
+      {
+        "kind": "imports",
+        "from": "Group",
+        "to": "Server"
+      }
+    ]
+  }
+}

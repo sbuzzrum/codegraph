@@ -1,0 +1,48 @@
+{
+  "description": "a .ctl yields a UserControl with its public API, events and contained controls",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "class",
+        "name": "MyControl",
+        "decorators": [
+          "vb6:usercontrol"
+        ]
+      },
+      {
+        "kind": "property",
+        "name": "Text",
+        "decorators": [
+          "vb6:property-get"
+        ]
+      },
+      {
+        "kind": "method",
+        "name": "Clear",
+        "visibility": "public"
+      },
+      {
+        "kind": "field",
+        "name": "Changed",
+        "decorators": [
+          "vb6:event"
+        ]
+      },
+      {
+        "kind": "field",
+        "name": "lblCaption",
+        "decorators": [
+          "vb6:control"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "kind": "contains",
+        "from": "MyControl",
+        "to": "Clear"
+      }
+    ]
+  }
+}

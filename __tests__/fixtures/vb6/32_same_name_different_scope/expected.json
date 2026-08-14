@@ -1,0 +1,24 @@
+{
+  "description": "inside a class, an unqualified name prefers the class member over the module procedure",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "Compute",
+        "toFile": "Class1.cls"
+      }
+    ]
+  },
+  "forbid": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "Compute",
+        "toFile": "Module1.bas"
+      }
+    ]
+  }
+}

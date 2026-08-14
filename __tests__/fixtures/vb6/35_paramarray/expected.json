@@ -1,0 +1,19 @@
+{
+  "description": "a ParamArray procedure is extracted and called",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "method",
+        "name": "LogAll"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "LogAll"
+      }
+    ]
+  }
+}

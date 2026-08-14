@@ -1,0 +1,38 @@
+{
+  "description": "external Declare procedures are symbols carrying their library and return type",
+  "status": "known-gap",
+  "gap": "Declare does not capture the return type (`As Long` is dropped) (prompt §16)",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "method",
+        "name": "GetTickCount",
+        "decorators": [
+          "vb6:declare"
+        ],
+        "visibility": "public",
+        "returnType": "Long"
+      },
+      {
+        "kind": "method",
+        "name": "Sleep",
+        "decorators": [
+          "vb6:declare"
+        ],
+        "visibility": "private"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "GetTickCount"
+      },
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "Sleep"
+      }
+    ]
+  }
+}

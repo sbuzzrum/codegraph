@@ -1,0 +1,16 @@
+{
+  "description": "Property Set is a property member tagged with its accessor",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "property",
+        "name": "Owner",
+        "visibility": "public",
+        "decorators": [
+          "vb6:property-set"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,4 @@
+Type=Exe
+Object={648A5603-2C6E-101B-82B6-000000000014}#1.1#0; MSCOMM32.OCX
+Form=Form1.frm
+Name="Proj"

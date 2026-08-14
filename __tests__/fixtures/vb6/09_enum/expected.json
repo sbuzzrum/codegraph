@@ -1,0 +1,37 @@
+{
+  "description": "an Enum and its members are declared inside the module",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "enum",
+        "name": "ColorKind",
+        "visibility": "public"
+      },
+      {
+        "kind": "enum_member",
+        "name": "ckRed"
+      },
+      {
+        "kind": "enum_member",
+        "name": "ckGreen"
+      },
+      {
+        "kind": "enum_member",
+        "name": "ckBlue"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "contains",
+        "from": "Module1",
+        "to": "ColorKind"
+      },
+      {
+        "kind": "contains",
+        "from": "ColorKind",
+        "to": "ckRed"
+      }
+    ]
+  }
+}

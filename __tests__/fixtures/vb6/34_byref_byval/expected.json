@@ -1,0 +1,18 @@
+{
+  "description": "ByRef and ByVal procedures are extracted and called",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "Swap2"
+      },
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "Twice"
+      }
+    ]
+  }
+}

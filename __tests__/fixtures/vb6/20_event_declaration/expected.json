@@ -1,0 +1,23 @@
+{
+  "description": "an Event declaration is a member of its class",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "field",
+        "name": "ItemRead",
+        "decorators": [
+          "vb6:event"
+        ],
+        "visibility": "public"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "contains",
+        "from": "Class1",
+        "to": "ItemRead"
+      }
+    ]
+  }
+}

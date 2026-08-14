@@ -1,0 +1,25 @@
+{
+  "description": "a Timer control binds to its Timer event handler",
+  "status": "known-gap",
+  "gap": "no event model: the Timer handler is an unlinked method (prompt §13)",
+  "expect": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "tmrTick_Timer",
+        "to": "Poll"
+      },
+      {
+        "kind": "calls",
+        "from": "tmrTick",
+        "to": "tmrTick_Timer",
+        "provenance": "heuristic",
+        "metadata": {
+          "synthesizedBy": "vb6-event-binding",
+          "binding": "control_event",
+          "event": "Timer"
+        }
+      }
+    ]
+  }
+}

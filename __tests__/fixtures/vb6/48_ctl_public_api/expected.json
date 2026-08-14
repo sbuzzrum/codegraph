@@ -1,0 +1,35 @@
+{
+  "description": "a UserControl placed on a form links the instance to the control type and its public API",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "class",
+        "name": "MyControl",
+        "decorators": [
+          "vb6:usercontrol"
+        ]
+      },
+      {
+        "kind": "field",
+        "name": "ucEditor",
+        "decorators": [
+          "vb6:control"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "kind": "references",
+        "from": "ucEditor",
+        "to": "MyControl",
+        "toFile": "MyControl.ctl"
+      },
+      {
+        "kind": "contains",
+        "from": "MyControl",
+        "to": "Clear"
+      }
+    ]
+  }
+}

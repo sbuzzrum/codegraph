@@ -1,0 +1,4 @@
+Type=Exe
+Module=ModA; ModA.bas
+Module=ModB; ModB.bas
+Name="Proj"

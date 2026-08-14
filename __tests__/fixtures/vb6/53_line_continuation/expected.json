@@ -1,0 +1,14 @@
+{
+  "description": "a statement split with the _ continuation is still one call",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "Target",
+        "count": 1
+      }
+    ]
+  }
+}

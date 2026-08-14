@@ -1,0 +1,24 @@
+{
+  "description": "an unqualified call reaches the global standard-module procedure, never a class member",
+  "status": "known-gap",
+  "expect": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "Process",
+        "toFile": "ModA.bas"
+      }
+    ]
+  },
+  "forbid": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run",
+        "toFile": "Class1.cls"
+      }
+    ]
+  },
+  "gap": "project scope is not modelled: an unqualified call is name-matched to a class member, which VB6 never reaches from outside the class (prompt §9, §21)"
+}

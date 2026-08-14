@@ -1,0 +1,14 @@
+{
+  "description": "Set x = New Class1 instantiates the class",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      {
+        "kind": "instantiates",
+        "from": "Build",
+        "to": "Class1",
+        "toFile": "Class1.cls"
+      }
+    ]
+  }
+}

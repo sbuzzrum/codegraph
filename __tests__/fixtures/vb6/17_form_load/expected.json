@@ -1,0 +1,25 @@
+{
+  "description": "Form_Load binds to the form itself, and its body still resolves normally",
+  "status": "known-gap",
+  "gap": "no event model: Form_* handlers are not bound to the form (prompt §13)",
+  "expect": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Form_Load",
+        "to": "Init"
+      },
+      {
+        "kind": "calls",
+        "from": "Form1",
+        "to": "Form_Load",
+        "provenance": "heuristic",
+        "metadata": {
+          "synthesizedBy": "vb6-event-binding",
+          "binding": "form_event",
+          "event": "Load"
+        }
+      }
+    ]
+  }
+}

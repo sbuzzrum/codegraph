@@ -1,0 +1,18 @@
+{
+  "description": "a call written without Call and without parentheses still resolves",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "Target"
+      },
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "NoArgs"
+      }
+    ]
+  }
+}

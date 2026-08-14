@@ -1,0 +1,15 @@
+{
+  "description": "an unqualified call reaches a Public Sub in another standard module",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Beta",
+        "to": "Alpha",
+        "fromFile": "ModB.bas",
+        "toFile": "ModA.bas"
+      }
+    ]
+  }
+}

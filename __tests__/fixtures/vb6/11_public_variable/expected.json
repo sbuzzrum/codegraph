@@ -1,0 +1,26 @@
+{
+  "description": "module-level Public variables and constants are members of the module",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "field",
+        "name": "gCounter",
+        "visibility": "public",
+        "returnType": "Long"
+      },
+      {
+        "kind": "constant",
+        "name": "MAX_ITEMS",
+        "visibility": "public"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "contains",
+        "from": "Module1",
+        "to": "gCounter"
+      }
+    ]
+  }
+}

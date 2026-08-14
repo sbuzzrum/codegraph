@@ -1,0 +1,18 @@
+{
+  "description": "As New instantiates the class, both at module level and inside a procedure",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      {
+        "kind": "instantiates",
+        "from": "Build",
+        "to": "Class1"
+      },
+      {
+        "kind": "instantiates",
+        "from": "mShared",
+        "to": "Class1"
+      }
+    ]
+  }
+}

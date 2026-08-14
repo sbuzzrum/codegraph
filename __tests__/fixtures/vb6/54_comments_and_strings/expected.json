@@ -1,0 +1,27 @@
+{
+  "description": "identifiers inside comments and string literals are never calls",
+  "status": "known-gap",
+  "expect": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "Real"
+      }
+    ]
+  },
+  "forbid": {
+    "unresolved": [
+      {
+        "name": "Ghost1"
+      },
+      {
+        "name": "Ghost2"
+      },
+      {
+        "name": "Ghost3"
+      }
+    ]
+  },
+  "gap": "string literals are not neutralised before scanning for calls, so an identifier inside a string (\"… Ghost3(1) …\") becomes a call reference (prompt §21). Comments are handled correctly."
+}

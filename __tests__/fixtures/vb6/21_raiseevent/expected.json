@@ -1,0 +1,18 @@
+{
+  "description": "RaiseEvent links the raising procedure to the event it raises, and says so",
+  "status": "known-gap",
+  "gap": "the edge exists but its provenance is dropped: unresolved_refs has no metadata column, so the extractor hint never reaches the edge (prompt §14)",
+  "expect": {
+    "edges": [
+      {
+        "kind": "references",
+        "from": "ReadBarcode",
+        "to": "ItemRead",
+        "provenance": "static",
+        "metadata": {
+          "vb6": "raises_event"
+        }
+      }
+    ]
+  }
+}

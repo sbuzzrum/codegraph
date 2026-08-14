@@ -1,0 +1,35 @@
+{
+  "description": "a Public Sub in a standard module is callable and the call resolves",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "module",
+        "name": "Module1",
+        "file": "Module1.bas"
+      },
+      {
+        "kind": "method",
+        "name": "Main",
+        "visibility": "public"
+      },
+      {
+        "kind": "method",
+        "name": "Greet",
+        "visibility": "public"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "contains",
+        "from": "Module1",
+        "to": "Main"
+      },
+      {
+        "kind": "calls",
+        "from": "Main",
+        "to": "Greet"
+      }
+    ]
+  }
+}

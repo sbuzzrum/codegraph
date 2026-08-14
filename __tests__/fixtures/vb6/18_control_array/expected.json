@@ -1,0 +1,18 @@
+{
+  "description": "a control array is ONE symbol with several indices, not N duplicate symbols",
+  "status": "known-gap",
+  "gap": "each Index element emits its own node sharing the same qualifiedName (prompt §11)",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "field",
+        "name": "cmdAction",
+        "decorators": [
+          "vb6:control",
+          "vb6:controlarray"
+        ],
+        "count": 1
+      }
+    ]
+  }
+}

@@ -1,0 +1,3 @@
+Type=Exe
+UserControl=MyControl.ctl
+Name="Proj"

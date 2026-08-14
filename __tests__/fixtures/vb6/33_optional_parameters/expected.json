@@ -1,0 +1,21 @@
+{
+  "description": "a procedure with Optional parameters resolves from every call form, named arguments included",
+  "status": "known-gap",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "method",
+        "name": "Log"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "Log",
+        "count": 3
+      }
+    ]
+  },
+  "gap": "a call written with named arguments (Name:=value) is not detected at all — the `:=` makes the statement look like an assignment (prompt §16)"
+}

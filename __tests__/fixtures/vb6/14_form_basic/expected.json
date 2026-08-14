@@ -1,0 +1,28 @@
+{
+  "description": "a .frm yields a Form type carrying its code members",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "class",
+        "name": "Form1",
+        "file": "Form1.frm",
+        "decorators": [
+          "vb6:form"
+        ]
+      },
+      {
+        "kind": "method",
+        "name": "Refresh2",
+        "file": "Form1.frm"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "contains",
+        "from": "Form1",
+        "to": "Refresh2"
+      }
+    ]
+  }
+}

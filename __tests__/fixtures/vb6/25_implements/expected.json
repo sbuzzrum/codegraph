@@ -1,0 +1,14 @@
+{
+  "description": "Implements links the implementing class to the interface class",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      {
+        "kind": "implements",
+        "from": "Worker",
+        "to": "IWorker",
+        "toFile": "IWorker.cls"
+      }
+    ]
+  }
+}

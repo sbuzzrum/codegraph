@@ -1,0 +1,4 @@
+Type=Exe
+UserControl=MyControl.ctl
+Form=Form1.frm
+Name="Proj"

@@ -1,0 +1,24 @@
+{
+  "description": "a Module.Procedure call reaches the procedure, not the module",
+  "status": "known-gap",
+  "gap": "a qualified call without parentheses resolves to the qualifier: Run --calls--> ModA instead of Process (prompt §16)",
+  "expect": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "Process",
+        "toFile": "ModA.bas"
+      }
+    ]
+  },
+  "forbid": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run",
+        "toKind": "module"
+      }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "description": "the Call statement resolves to the called procedure",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "Target"
+      }
+    ]
+  }
+}

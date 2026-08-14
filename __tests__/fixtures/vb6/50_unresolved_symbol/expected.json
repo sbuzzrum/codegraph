@@ -1,0 +1,21 @@
+{
+  "description": "a call to a symbol that does not exist stays unresolved and creates no edge",
+  "status": "pass",
+  "expect": {
+    "unresolved": [
+      {
+        "name": "NoSuchProcedure",
+        "kind": "calls",
+        "from": "Run"
+      }
+    ]
+  },
+  "forbid": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run"
+      }
+    ]
+  }
+}

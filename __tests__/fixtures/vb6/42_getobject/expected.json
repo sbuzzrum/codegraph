@@ -1,0 +1,12 @@
+{
+  "description": "GetObject is late binding and must not fabricate an instantiation target",
+  "status": "pass",
+  "forbid": {
+    "edges": [
+      {
+        "kind": "instantiates",
+        "from": "Run"
+      }
+    ]
+  }
+}

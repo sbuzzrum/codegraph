@@ -1,0 +1,35 @@
+{
+  "description": "a .vbp is a project node containing its member modules, classes and forms",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "module",
+        "name": "MyApp",
+        "decorators": [
+          "vb6:project"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "kind": "contains",
+        "from": "MyApp",
+        "to": "Module1",
+        "toFile": "Module1.bas"
+      },
+      {
+        "kind": "contains",
+        "from": "MyApp",
+        "to": "Class1",
+        "toFile": "Class1.cls"
+      },
+      {
+        "kind": "contains",
+        "from": "MyApp",
+        "to": "Form1",
+        "toFile": "Form1.frm"
+      }
+    ]
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "description": "a user-defined Type is a struct holding its members",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "struct",
+        "name": "TPoint",
+        "visibility": "public"
+      },
+      {
+        "kind": "field",
+        "name": "X",
+        "returnType": "Long"
+      },
+      {
+        "kind": "field",
+        "name": "Y",
+        "returnType": "Long"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "contains",
+        "from": "Module1",
+        "to": "TPoint"
+      },
+      {
+        "kind": "contains",
+        "from": "TPoint",
+        "to": "X"
+      }
+    ]
+  }
+}

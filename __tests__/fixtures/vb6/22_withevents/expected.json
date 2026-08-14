@@ -1,0 +1,47 @@
+{
+  "description": "a WithEvents field binds its producer event to the consumer handler",
+  "status": "known-gap",
+  "gap": "WithEvents binding is not implemented: the handler is an unlinked method (prompt §13)",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "field",
+        "name": "mReader",
+        "decorators": [
+          "vb6:withevents"
+        ],
+        "returnType": "Class1"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "type_of",
+        "from": "mReader",
+        "to": "Class1"
+      },
+      {
+        "kind": "calls",
+        "from": "mReader",
+        "to": "mReader_ItemRead",
+        "provenance": "heuristic",
+        "metadata": {
+          "synthesizedBy": "vb6-event-binding",
+          "binding": "withevents",
+          "event": "ItemRead"
+        }
+      },
+      {
+        "kind": "calls",
+        "from": "ItemRead",
+        "to": "mReader_ItemRead",
+        "fromFile": "Class1.cls",
+        "toFile": "Form1.frm",
+        "provenance": "heuristic",
+        "metadata": {
+          "synthesizedBy": "vb6-event-binding",
+          "binding": "withevents"
+        }
+      }
+    ]
+  }
+}

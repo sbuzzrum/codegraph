@@ -1,0 +1,18 @@
+{
+  "description": "module-level Private and bare Dim variables are private module members",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "field",
+        "name": "mCount",
+        "visibility": "private",
+        "returnType": "Long"
+      },
+      {
+        "kind": "field",
+        "name": "mLegacy"
+      }
+    ]
+  }
+}

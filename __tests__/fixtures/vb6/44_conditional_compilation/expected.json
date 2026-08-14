@@ -1,0 +1,31 @@
+{
+  "description": "both branches of a #If stay in the graph and the directives are not calls",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "LogDebug"
+      },
+      {
+        "kind": "calls",
+        "from": "Run",
+        "to": "LogRelease"
+      }
+    ]
+  },
+  "forbid": {
+    "unresolved": [
+      {
+        "name": "If"
+      },
+      {
+        "name": "Else"
+      },
+      {
+        "name": "Const"
+      }
+    ]
+  }
+}

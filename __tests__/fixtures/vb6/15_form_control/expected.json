@@ -1,0 +1,49 @@
+{
+  "description": "designer controls become form members and keep their container nesting",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "field",
+        "name": "fraMain",
+        "decorators": [
+          "vb6:control"
+        ],
+        "returnType": "Frame"
+      },
+      {
+        "kind": "field",
+        "name": "cmdOk",
+        "decorators": [
+          "vb6:control"
+        ],
+        "returnType": "CommandButton"
+      },
+      {
+        "kind": "field",
+        "name": "txtName",
+        "decorators": [
+          "vb6:control"
+        ],
+        "returnType": "TextBox"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "contains",
+        "from": "Form1",
+        "to": "fraMain"
+      },
+      {
+        "kind": "contains",
+        "from": "fraMain",
+        "to": "cmdOk"
+      },
+      {
+        "kind": "contains",
+        "from": "Form1",
+        "to": "txtName"
+      }
+    ]
+  }
+}

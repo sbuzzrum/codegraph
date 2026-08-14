@@ -1,0 +1,3 @@
+Type=Exe
+Module=ServerMod; ServerMod.bas
+Name="Server"

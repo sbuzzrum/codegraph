@@ -1,0 +1,24 @@
+{
+  "description": "a call through the default form instance reaches the form member, not the form",
+  "status": "known-gap",
+  "gap": "a qualified call without parentheses resolves to the qualifier: Boot --calls--> Form1 instead of Reload (prompt §16)",
+  "expect": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Boot",
+        "to": "Reload",
+        "toFile": "Form1.frm"
+      }
+    ]
+  },
+  "forbid": {
+    "edges": [
+      {
+        "kind": "calls",
+        "from": "Boot",
+        "toKind": "class"
+      }
+    ]
+  }
+}
