@@ -3,10 +3,12 @@
 > Documento vivo. Fonte autoritativa dei requisiti: `PROMPT_CODEGRAPH_VB6_FORK_PERSONALE.md`
 > (nella dir padre del repo). Questo file traccia **piano**, **decisioni** e **stato**.
 
-Ultimo aggiornamento: 2026-08-14 — fase corrente: **5–6** (motore VB6 completo:
-extractor + resolver + binding eventi. Suite di conformità **55/55**, 0 gap,
-0 falsi positivi, 0 regressioni. Restano: MCP/metriche §20 e la documentazione
-finale con l'assessment del fork).
+Ultimo aggiornamento: 2026-08-14 — fasi **1–6 completate**. Motore VB6 completo
+(extractor + resolver + binding eventi), MCP verificato, documentazione e
+assessment prodotti. Suite di conformità **56/56**, 0 gap, 0 falsi positivi,
+0 regressioni (2958 test verdi).
+Giudizio (§25): **READY FOR USE WITH RESERVATIONS** — la riserva è la mancata
+validazione su un repository VB6 reale (§24), unico passo residuo.
 
 Committato e pushato su `origin/main`:
 - `2d59953` — `docs(vb6): architecture audit, phased plan and implementation decisions`
@@ -88,19 +90,24 @@ Il prompt (§8) elenca nodi/relazioni VB6 ricchi. NodeKind/EdgeKind sono fissi. 
 | PROJECT_CONTAINS | `contains` | static (da .vbp) |
 | PROJECT_REFERENCES | `imports` | static (da .vbp/.vbg) |
 
-**Provenance VB6** (`metadata.provenance` / `synthesizedBy`), mappata sui concetti del prompt §14:
-`static, lexical_scope, module_scope, project_scope, type_resolution, event_binding,
-withevents_binding, typelib, synthesized, heuristic, unresolved`.
+**Provenance VB6** — *questa proposta iniziale è stata superata in fase 4.* La colonna
+`edges.provenance` ha dominio chiuso e la convenzione del repo è che solo i synthesizer la marchino:
+gli edge statici VB6 la lasciano vuota e portano il dettaglio in `metadata` (`scope`, `qualifier`,
+`vb6`), i binding eventi sono `heuristic`. Vedi D4/D5 in `IMPLEMENTATION_DECISIONS.md` e la tabella
+autoritativa in `VB6_SEMANTIC_MODEL.md`.
 Regola d'oro (§21): in caso di ambiguità **preferire `unresolved`** a un edge falso.
 
 ---
 
-## 2. Decisione grammar VB6
+## 2. Decisione grammar VB6 — *esito*
 
-- **Baseline:** riuso `tree-sitter-vbnet.wasm` già presente (VB6 e VB.NET condividono gran parte della sintassi di dichiarazioni/procedure/chiamate).
-- **Da verificare in Fase 2** su fixture reali VB6 la copertura di: header `.frm`/`.ctl` (`VERSION`, `Object=`, blocco `Begin … End`), `Property Get/Let/Set`, `Event`, `RaiseEvent`, `WithEvents`, `Implements`, control array, `#If/#Const`, line continuation `_`.
-- **Sezione designer dei `.frm/.ctl` NON è codice VB** → gestita da **extractor composito dedicato** (modello `dfm-extractor.ts`): si separa l'header designer (parser custom line-based) dal corpo codice (grammar tree-sitter). Deciso a priori: la designer section non passa per tree-sitter-vbnet.
-- Se la grammar vbnet fallisce su costrutti VB6 core del corpo codice: valutare grammatiche tree-sitter VBA/VB6 esterne o estendere quella vendorizzata; ProLeap ANTLR come **oracle** per casi dubbi (non come runtime). Ogni scelta documentata in `VB6_FORK_ASSESSMENT.md` + licenze.
+L'ipotesi iniziale (riusare `tree-sitter-vbnet.wasm`) è stata **verificata e scartata**: la grammar
+VB.NET va in errore su costrutti **core** di VB6 (`Property Get/Let/Set`, `Event`, `WithEvents`,
+`Implements`, `Type…End Type`, `As New`, `Declare`), e la macchina non ha una toolchain per compilare
+una grammar VBA→wasm. Decisione finale: **extractor custom line-based**, senza tree-sitter — vedi D1
+in `IMPLEMENTATION_DECISIONS.md` per l'evidenza misurata e `VB6_ARCHITECTURE.md` per il risultato.
+ProLeap ANTLR resta oracle concettuale, mai a runtime. Nessuna grammar di terzi vendorizzata, quindi
+nessuna implicazione di licenza.
 
 ---
 
@@ -117,10 +124,10 @@ Regola d'oro (§21): in caso di ambiguità **preferire `unresolved`** a un edge 
 - [x] Registrare lingua `vb6` (types.ts + grammars.ts: estensioni `.bas/.cls/.frm/.ctl/.vbp/.vbg`, display
       name, liste supported/grammar-loaded; dispatch in `tree-sitter.ts`). **NB:** nessuna entry wasm (D1).
       Committato in `530b584`.
-- [x] Suite conformità §7: **55 mini-progetti** in `__tests__/fixtures/vb6/NN_*/` con oracolo
+- [x] Suite conformità §7: **56 mini-progetti** in `__tests__/fixtures/vb6/NN_*/` con oracolo
       machine-readable (`expected.json`) e runner `__tests__/vb6-conformance.test.ts` che indicizza
       ogni fixture con la pipeline reale (estrazione → resolution → SQLite) e confronta il graph
-      prodotto con quello atteso. Copre i 50 casi del prompt più 5 casi adversarial (§21).
+      prodotto con quello atteso. Copre i 50 casi del prompt più 6 casi aggiuntivi (adversarial §21 e range del corpo dei simboli).
 - [x] ~~Test grammar~~ → **N/A** (nessuna grammar tree-sitter, D1); sostituito dal runner di conformità,
       che esercita l'extractor end-to-end.
 - **Commit:** `feat(vb6): register language and grammar` (`530b584`); `test(vb6): add conformance suite`.
@@ -228,22 +235,30 @@ type library COM esterne non sono lette — i tipi dei controlli VB standard res
 - [ ] Conditional compilation (§17): riconosci `#If/#ElseIf/#Else/#End If/#Const`; non eliminare rami silenziosamente.
 - **Commit:** `feat(vb6): resolve scope and qualified calls`, `feat(vb6): resolve events/WithEvents/RaiseEvent`, `feat(vb6): model COM/OCX references`
 
-### Fase 5 — Integrazione, adversarial, MCP, regressioni
-- [ ] Casi adversarial §21 (omonimi, private/public, control array, late binding, default member…):
-      il resolver preferisce `unresolved` al falso positivo.
-- [ ] MCP: `server-instructions.ts` espone VB6 tra le lingue supportate; verifica search/callers/callees/impact/explore su graph VB6.
-- [ ] Metriche §20 riproducibili (fixture pass, simboli/edge attesi vs trovati, FP/FN, unresolved, parse errors, regressioni).
-- [ ] **Regressioni:** `npm test` verde su tutte le lingue esistenti (nessuna regressione).
-- **Commit:** `test(vb6): adversarial resolution cases`, `feat(mcp): surface vb6`, `docs(vb6): conformance metrics`
+### Fase 5 — Integrazione, adversarial, MCP, regressioni *(completa)*
+- [x] Casi adversarial §21: fixture 43, 50, 51, 52, 54, 55 — il resolver preferisce `unresolved`
+      al falso positivo, e i `forbid` degli oracoli lo verificano.
+- [x] MCP: `query`/`callers`/`callees`/`impact`/`node`/`explore` verificati sul graph VB6.
+      `explore` mostra i binding eventi come hop dinamici con il wiring site
+      (`VB6 WithEvents event `ItemRead` @Form1.frm:28`); `node` restituisce il corpo completo.
+      VB6 nominato in `server-instructions.ts`.
+      **Bug trovato e corretto qui:** i nodi procedura avevano `endLine == startLine`, quindi
+      `codegraph_node` mostrava la sola firma e costringeva l'agente a rileggere il file — esattamente
+      ciò che CodeGraph esiste per evitare. Fixture `56_symbol_body_range` a protezione.
+- [x] Metriche §20 riproducibili: `VB6_CONFORMANCE.md` generato dal runner; `TEST_RESULTS.md`.
+- [x] Regressioni: `npm test` verde (2958 test), nessuna lingua esistente toccata.
 
-### Fase 6 — Documentazione, assessment, push
-- [ ] Docs §22: `VB6_SUPPORT.md`, `VB6_ARCHITECTURE.md`, `VB6_LIMITATIONS.md`, `VB6_CONFORMANCE.md`,
-      `TEST_RESULTS.md`, `OPEN_QUESTIONS.md` (+ SEMANTIC_MODEL/IMPLEMENTATION_DECISIONS già iniziati).
-- [ ] `VB6_FORK_ASSESSMENT.md` con giudizio: READY / READY WITH RESERVATIONS / NOT READY.
-- [ ] Push su `origin` (mai upstream, mai PR upstream). CHANGELOG `[Unreleased]` se opportuno.
-- **Commit:** `docs(vb6): support, limitations and fork assessment`
+### Fase 6 — Documentazione, assessment, push *(completa)*
+- [x] `VB6_SUPPORT.md`, `VB6_ARCHITECTURE.md`, `VB6_LIMITATIONS.md`, `VB6_CONFORMANCE.md`,
+      `TEST_RESULTS.md`, `OPEN_QUESTIONS.md`, `VB6_SEMANTIC_MODEL.md`, `IMPLEMENTATION_DECISIONS.md`.
+- [x] `VB6_FORK_ASSESSMENT.md` — **READY FOR USE WITH RESERVATIONS**.
+- [x] Push su `origin/main` (mai upstream, mai PR upstream).
 
----
+### Fase 7 — Validazione real-world *(da fare, §24)*
+Unico passo residuo, e l'unica riserva dell'assessment. Sequenza prescritta:
+indicizzare un repository VB6 reale → misurare parse error, unresolved per categoria, nodi/edge,
+tempi → per ogni difetto **prima** una fixture minimale, poi il fix del motore, poi la suite, poi
+la rivalidazione del repository. Mai eccezioni specifiche per il repository.
 
 ## 4. Vincoli permanenti (dal prompt)
 - Codice **general-purpose**, zero riferimenti Itineris (nomi/path/workaround). §23.

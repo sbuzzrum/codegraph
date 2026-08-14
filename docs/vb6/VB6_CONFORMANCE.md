@@ -7,13 +7,13 @@
 
 | Metric | Value |
 |---|---|
-| Fixtures | 55 |
-| Passing | 55 |
+| Fixtures | 56 |
+| Passing | 56 |
 | Known gaps (semantics not implemented yet) | 0 |
 | Failing (regression — oracle says pass) | 0 |
 | Ready to promote (gap closed) | 0 |
-| Expected assertions | 127 |
-| Assertions satisfied | 127 |
+| Expected assertions | 132 |
+| Assertions satisfied | 132 |
 | False negatives (expected, missing) | 0 |
 | False positives (forbidden, present) | 0 |
 | Unresolved references | 22 |
@@ -78,3 +78,4 @@
 | 53_line_continuation | pass | 1 | 1 | 0 | 0 | 0 |  |
 | 54_comments_and_strings | pass | 1 | 1 | 0 | 0 | 0 |  |
 | 55_array_access_is_not_a_call | pass | 2 | 2 | 0 | 0 | 0 |  |
+| 56_symbol_body_range | pass | 5 | 5 | 0 | 0 | 0 |  |

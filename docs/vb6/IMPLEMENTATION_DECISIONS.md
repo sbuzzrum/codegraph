@@ -62,10 +62,59 @@ NodeKind/EdgeKind sono set fissi (`src/types.ts`). L'ontologia VB6 del prompt §
 di essi + `metadata.vb6Kind` e `provenance`, senza introdurre nuovi kind. Tabella completa in
 `VB6_SEMANTIC_MODEL.md`. Nuovi kind solo se un concetto risultasse irriducibile (nessuno finora).
 
-Provenance edge (prompt §14) registrata in `metadata.provenance`:
-`static | lexical_scope | module_scope | project_scope | type_resolution | event_binding |
-withevents_binding | typelib | synthesized | heuristic | unresolved`.
+Provenance edge (prompt §14): **corretta in fase 4.** La colonna `edges.provenance` ha un dominio
+chiuso (`tree-sitter | scip | heuristic`) e la convenzione del repo è che l'estrazione statica **non**
+la imposti — solo i synthesizer marcano. VB6 si adegua invece di allargare il dominio: gli edge statici
+lasciano `provenance` non impostata e portano il dettaglio in `metadata` (`scope`, `qualifier`, `vb6`),
+i binding eventi sono `heuristic` con `synthesizedBy`/`binding`/`event`/`registeredAt`.
+Mappatura completa in `VB6_SEMANTIC_MODEL.md`.
 Regola (§21): in ambiguità, **preferire `unresolved`** a un edge falso.
+
+---
+
+## D4 — Il qualificatore viaggia in `candidates`, non in un nuovo campo
+
+**Data:** 2026-08-14
+
+La resolution rilegge i riferimenti **dal database**, e `unresolved_refs` non ha colonna `metadata`:
+l'hint dell'extractor (qualificatore di `c.Compute`) non arrivava mai al resolver.
+
+Alternative valutate:
+1. migrare lo schema aggiungendo `metadata` a `unresolved_refs` — tocca il core condiviso e la
+   migrazione va mantenuta;
+2. risolvere i riferimenti VB6 in memoria subito dopo l'estrazione — vincola quando il resolver può
+   girare e duplica il ciclo di resolution;
+3. **usare `candidates`** — già persistito, già riletto, e il suo significato dichiarato è
+   *"possible qualified names it might resolve to"*, che è esattamente il dato da trasportare.
+
+**Decisione: (3).** L'extractor scrive `["c.Compute"]`, il resolver ne ricava il qualificatore.
+Nessuna migrazione. Tutto il resto si deduce dal grafo: un sito `RaiseEvent` si riconosce perché il
+target è un nodo `vb6:event`; il late binding dal `returnType` della variabile (`Object`/`Variant`).
+
+**Effetto collaterale:** `candidates` veniva scritto e riletto ma **scartato** in tre conversioni
+`UnresolvedReference → UnresolvedRef` prima di `resolveOne`. Nessuna lingua lo leggeva, quindi il campo
+era di fatto morto. Ora è propagato — modifica additiva, nessun effetto sulle altre lingue.
+
+---
+
+## D5 — Binding eventi come pass di sintesi, non come estrazione
+
+**Data:** 2026-08-14
+
+VB6 collega evento e handler **per convenzione di nome**: nel sorgente non esiste alcun riferimento
+dall'uno all'altro. Il legame non è quindi un fatto estratto ma un fatto **inferito**, e va prodotto
+dove CodeGraph produce gli altri dispatch dinamici: un pass di sintesi dopo la resolution
+(`src/resolution/vb6-event-synthesizer.ts`), accanto a callback/observer/react-render.
+
+Conseguenze:
+- ogni edge è `provenance: 'heuristic'` con `synthesizedBy: 'vb6-event-binding'`, `binding`, `event`,
+  `registeredAt` — mai presentato come chiamata statica (§14);
+- l'aggancio è al produttore reale: un handler si lega solo se nello stesso file esiste un controllo o
+  un campo `WithEvents` con quel nome. È ciò che impedisce a `IWorker_Run` (metodo di `Implements`) di
+  essere scambiato per un handler e a due controlli con evento omonimo di incrociarsi (§21);
+- per `WithEvents` il binding è emesso **due volte** quando la classe produttrice è indicizzata (dal
+  campo e dalla dichiarazione `Event`), perché è il secondo a rendere percorribile il flusso
+  `RaiseEvent → handler` richiesto dal §13.
 
 ---
 
