@@ -1,6 +1,6 @@
 {
   "description": "a procedure with Optional parameters resolves from every call form, named arguments included",
-  "status": "known-gap",
+  "status": "pass",
   "expect": {
     "nodes": [
       {
@@ -16,6 +16,5 @@
         "count": 3
       }
     ]
-  },
-  "gap": "a call written with named arguments (Name:=value) is not detected at all — the `:=` makes the statement look like an assignment (prompt §16)"
+  }
 }

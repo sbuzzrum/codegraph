@@ -1,7 +1,6 @@
 {
   "description": "the Object= line of a .frm ties the form to the OCX component it uses",
-  "status": "known-gap",
-  "gap": "no OCXReference node exists, so the form-to-component link stays an unresolved ref (prompt §8, §15)",
+  "status": "pass",
   "expect": {
     "nodes": [
       {

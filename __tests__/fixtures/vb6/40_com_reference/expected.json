@@ -1,7 +1,6 @@
 {
   "description": "COM type-library and OCX component references of a .vbp are symbols of the project",
-  "status": "known-gap",
-  "gap": "references are emitted as unresolved refs only — no COMReference/OCXReference node is created, so CLSID and type library are not queryable (prompt §8, §15)",
+  "status": "pass",
   "expect": {
     "nodes": [
       {

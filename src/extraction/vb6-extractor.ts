@@ -120,6 +120,74 @@ const TYPES = new Set(
   ],
 );
 
+/**
+ * Global objects supplied by the VB6 runtime. A member access on one of these
+ * (`Debug.Print`, `Err.Number`, `App.Path`) targets the runtime, never a symbol
+ * of the project, so it must not become a reference — otherwise every
+ * `Debug.Print` leaves a dangling `Print` in `unresolved_refs`.
+ */
+const INTRINSIC_OBJECTS = new Set(
+  ['debug', 'err', 'app', 'screen', 'printer', 'clipboard', 'forms', 'vb', 'vba'],
+);
+
+function isIntrinsicType(name: string): boolean {
+  return TYPES.has(name.toLowerCase());
+}
+
+/**
+ * Blank out the contents of string literals, keeping the quotes and the
+ * original length so every offset stays valid. Without this an identifier
+ * inside a literal (`"call Foo(1) now"`) is scanned as real code.
+ */
+function maskStrings(line: string): string {
+  let out = '';
+  let inStr = false;
+  for (const ch of line) {
+    if (ch === '"') {
+      inStr = !inStr;
+      out += ch;
+    } else {
+      out += inStr ? ' ' : ch;
+    }
+  }
+  return out;
+}
+
+/** `Me.Items(3)` → `Items`; used to name the target of a `With` block. */
+function lastSegment(expr: string): string {
+  const m = expr.trim().match(/([A-Za-z_]\w*)\s*(\([^)]*\))?\s*$/);
+  return m ? m[1]! : expr.trim();
+}
+
+/** Index of the previous non-blank character, or -1. */
+function prevNonSpace(s: string, from: number): number {
+  let i = from;
+  while (i >= 0 && /\s/.test(s[i]!)) i--;
+  return i;
+}
+
+/** Index of the next non-blank character, or -1. */
+function nextNonSpace(s: string, from: number): number {
+  let i = from;
+  while (i < s.length && /\s/.test(s[i]!)) i++;
+  return i < s.length ? i : -1;
+}
+
+/** Parameter names declared in a procedure signature `(ByVal a As Long, b())`. */
+function parameterNames(signature: string): string[] {
+  const paren = signature.match(/\(([\s\S]*)\)/);
+  if (!paren) return [];
+  const names: string[] = [];
+  for (const part of splitDecls(paren[1]!)) {
+    const m = part
+      .trim()
+      .replace(/^(?:Optional\s+)?(?:ByVal\s+|ByRef\s+)?(?:ParamArray\s+)?/i, '')
+      .match(/^([A-Za-z_]\w*)/);
+    if (m) names.push(m[1]!);
+  }
+  return names;
+}
+
 // ---------------------------------------------------------------------------
 // Core VB6 code extractor
 // ---------------------------------------------------------------------------
@@ -141,6 +209,22 @@ export class Vb6Extractor {
   private unresolved: UnresolvedReference[] = [];
   private errors: ExtractionError[] = [];
   private stack: Container[] = [];
+
+  /**
+   * Every name declared as data in this file (module fields, procedure locals,
+   * parameters), lower-cased. VB6 spells an array access and a call the same
+   * way — `Items(3)` — so the only way to tell them apart is knowing what was
+   * declared. Statement scanning is therefore deferred until the whole file has
+   * been read (see `pending`), because declarations may follow the procedures
+   * that use them.
+   */
+  private declaredVars = new Set<string>();
+
+  /** Statements queued for the deferred scan, in source order. */
+  private pending: { text: string; fromId: string; line: number; procId: string }[] = [];
+
+  /** Target names of the enclosing `With` blocks, innermost last. */
+  private withStack: string[] = [];
 
   /**
    * @param containerKind  'module' for .bas, 'class' for .cls/.frm/.ctl.
@@ -292,7 +376,12 @@ export class Vb6Extractor {
           mode = { kind: 'module' };
           continue;
         }
-        this.scanStatement(t, mode.procId, l.line);
+        // Local declarations become symbols right away (they need the
+        // procedure on the scope stack); everything else is scanned later,
+        // once every declaration in the file is known.
+        if (!this.emitLocalDecls(t, l.line, l.endLine, mode.procId)) {
+          this.pending.push({ text: t, fromId: mode.procId, line: l.line, procId: mode.procId });
+        }
         continue;
       }
 
@@ -319,12 +408,16 @@ export class Vb6Extractor {
       let m = t.match(/^(?:(Public|Private|Friend|Global)\s+)?(?:Static\s+)?(Sub|Function)\s+([A-Za-z_]\w*)\s*(\([^)]*\))?(?:\s+As\s+([A-Za-z_][\w.]*(?:\([^)]*\))?))?/i);
       if (m) {
         const vis = visFrom(m[1]);
+        const returnType = m[5] ? simpleType(m[5]) : undefined;
         const proc = this.mkNode('method', m[3]!, l.line, l.endLine, {
           visibility: vis,
           signature: t,
-          returnType: m[5] ? simpleType(m[5]) : undefined,
+          returnType,
         });
-        if (m[5]) this.addRef(proc.id, simpleType(m[5])!, 'returns', l.line);
+        if (returnType && !isIntrinsicType(returnType)) this.addRef(proc.id, returnType, 'returns', l.line);
+        for (const p of parameterNames(m[4] ?? '')) this.declaredVars.add(p.toLowerCase());
+        // A Function assigns its result through its own name; that is not a
+        // recursive call, and the name is not data either.
         this.stack.push({ id: proc.id, name: proc.name, kind: 'method' });
         mode = { kind: 'proc', end: new RegExp(`^End\\s+${m[2]}\\b`, 'i'), procId: proc.id };
         continue;
@@ -340,20 +433,25 @@ export class Vb6Extractor {
           decorators: [`vb6:property-${accessor}`],
           returnType: m[5] ? simpleType(m[5]) : undefined,
         });
+        for (const p of parameterNames(m[4] ?? '')) this.declaredVars.add(p.toLowerCase());
         this.stack.push({ id: prop.id, name: prop.name, kind: 'property' });
         mode = { kind: 'proc', end: /^End\s+Property\b/i, procId: prop.id };
         continue;
       }
 
       // Declare (external / P-Invoke)
-      m = t.match(/^(?:(Public|Private|Global)\s+)?Declare\s+(?:PtrSafe\s+)?(Function|Sub)\s+([A-Za-z_]\w*)\s+Lib\s+"([^"]*)"(?:\s+Alias\s+"([^"]*)")?/i);
+      m = t.match(
+        /^(?:(Public|Private|Global)\s+)?Declare\s+(?:PtrSafe\s+)?(Function|Sub)\s+([A-Za-z_]\w*)\s+Lib\s+"([^"]*)"(?:\s+Alias\s+"([^"]*)")?\s*(\([^)]*\))?(?:\s+As\s+([A-Za-z_][\w.]*))?/i
+      );
       if (m) {
         this.mkNode('method', m[3]!, l.line, l.endLine, {
           visibility: visFrom(m[1]),
           signature: t,
           decorators: ['vb6:declare'],
+          returnType: m[7] ? simpleType(m[7]) : undefined,
           docstring: `Declare Lib "${m[4]}"${m[5] ? ` Alias "${m[5]}"` : ''}`,
         });
+        for (const p of parameterNames(m[6] ?? '')) this.declaredVars.add(p.toLowerCase());
         continue;
       }
 
@@ -419,6 +517,57 @@ export class Vb6Extractor {
 
       // Option / Attribute / VERSION / Begin(designer) / lone End → ignore here.
     }
+
+    // Deferred scan: now every declaration in the file is known, so an
+    // `Items(3)` can be told from a `Helper(3)`.
+    let currentProc = '';
+    for (const stmt of this.pending) {
+      if (stmt.procId !== currentProc) {
+        this.withStack = []; // a With block never spans procedures
+        currentProc = stmt.procId;
+      }
+      this.scanStatement(stmt.text, stmt.fromId, stmt.line);
+    }
+    this.pending = [];
+  }
+
+  /**
+   * Emit nodes for a procedure-local declaration (`Dim`/`Static`/`Const`/
+   * `ReDim`). Returns true when the line was a declaration and needs no
+   * further scanning.
+   */
+  private emitLocalDecls(t: string, line: number, endLine: number, procId: string): boolean {
+    const m = t.match(/^(Dim|Static|Const|ReDim)(?:\s+Preserve)?\s+(WithEvents\s+)?(.+)$/i);
+    if (!m) return false;
+
+    // `ReDim` resizes an existing array — the symbol already exists.
+    const isReDim = m[1]!.toLowerCase() === 'redim';
+    const isConst = m[1]!.toLowerCase() === 'const';
+
+    for (const decl of splitDecls(m[3]!)) {
+      const dm = decl
+        .trim()
+        .match(/^([A-Za-z_]\w*)\s*(\([^)]*\))?\s*(?:As\s+(New\s+)?([A-Za-z_][\w.]*))?/i);
+      if (!dm) continue;
+      const name = dm[1]!;
+      this.declaredVars.add(name.toLowerCase());
+      const typeName = dm[4] ? simpleType(dm[4]) : undefined;
+
+      if (!isReDim) {
+        const node = this.mkNode(isConst ? 'constant' : 'variable', name, line, endLine, {
+          signature: decl.trim(),
+          returnType: typeName,
+          isStatic: m[1]!.toLowerCase() === 'static' || undefined,
+          decorators: m[2] ? ['vb6:withevents'] : undefined,
+        });
+        if (typeName && !isIntrinsicType(typeName)) this.addRef(node.id, typeName, 'type_of', line);
+      }
+      // `As New` instantiates at first use, from the procedure.
+      if (dm[3] && typeName && !isIntrinsicType(typeName)) {
+        this.addRef(procId, typeName, 'instantiates', line);
+      }
+    }
+    return true;
   }
 
   /** Pop the scope stack back down to (and keeping) the module container. */
@@ -442,6 +591,7 @@ export class Vb6Extractor {
       const dm = decl.match(/^([A-Za-z_]\w*)\s*(\([^)]*\))?\s*(?:As\s+(New\s+)?([A-Za-z_][\w.]*))?/i);
       if (!dm) continue;
       const name = dm[1]!;
+      this.declaredVars.add(name.toLowerCase());
       const typeName = dm[4] ? simpleType(dm[4]) : undefined;
       const decorators: string[] = [];
       if (opts.withEvents) decorators.push('vb6:withevents');
@@ -451,53 +601,143 @@ export class Vb6Extractor {
         returnType: typeName,
         decorators: decorators.length ? decorators : undefined,
       });
-      if (typeName) this.addRef(node.id, typeName, 'type_of', line);
-      if (dm[3]) this.addRef(node.id, typeName!, 'instantiates', line); // As New
+      // Intrinsic types are not symbols of the project: emitting a reference to
+      // `Long` only leaves a row that can never resolve.
+      if (typeName && !isIntrinsicType(typeName)) {
+        this.addRef(node.id, typeName, 'type_of', line);
+        if (dm[3]) this.addRef(node.id, typeName, 'instantiates', line); // As New
+      }
     }
   }
 
-  /** Scan one statement line inside a procedure body for calls/refs. */
-  private scanStatement(t: string, fromId: string, line: number): void {
-    // Local declarations (Dim/Static/Const/ReDim) — capture As New instantiation.
-    let m = t.match(/^(?:Dim|Static|Const|ReDim(?:\s+Preserve)?)\s+(WithEvents\s+)?(.+)$/i);
+  /** Scan one statement of a procedure body for calls and references. */
+  private scanStatement(rawText: string, fromId: string, line: number): void {
+    // A late-bound ProgID lives inside a string literal, so read it before the
+    // literals are masked. The target is external and stays unresolved by
+    // design (prompt §15) — but the ProgID itself is worth recording.
+    for (const m of rawText.matchAll(/\b(?:CreateObject|GetObject)\s*\(\s*"([^"]+)"/gi)) {
+      const arg = m[1]!;
+      // GetObject's first argument may be a file path, which is not a ProgID.
+      if (/[\\/:]/.test(arg) || !arg.includes('.')) continue;
+      this.addRef(fromId, arg, 'instantiates', line, { vb6: 'late_binding', progId: arg });
+    }
+
+    const t = maskStrings(rawText);
+
+    // A line label (`ErrHandler:`) is a jump target, not a call.
+    if (/^[A-Za-z_]\w*\s*:\s*$/.test(t)) return;
+
+    // With blocks: remember the target so `.Member` lines can be attributed.
+    let m = t.match(/^With\s+(.+)$/i);
     if (m) {
-      for (const decl of splitDecls(m[2]!)) {
-        const dm = decl.match(/^([A-Za-z_]\w*)\s*(\([^)]*\))?\s*As\s+(New\s+)?([A-Za-z_][\w.]*)/i);
-        if (dm && dm[3]) this.addRef(fromId, simpleType(dm[4]!)!, 'instantiates', line); // As New Foo
-        else if (dm && dm[4]) this.addRef(fromId, simpleType(dm[4]!)!, 'type_of', line);
-      }
+      this.withStack.push(lastSegment(m[1]!));
+      return;
+    }
+    if (/^End\s+With\b/i.test(t)) {
+      this.withStack.pop();
       return;
     }
 
     // RaiseEvent Name(...)
     m = t.match(/^RaiseEvent\s+([A-Za-z_]\w*)/i);
-    if (m) { this.addRef(fromId, m[1]!, 'references', line, { vb6: 'raises_event' }); return; }
+    if (m) {
+      this.addRef(fromId, m[1]!, 'references', line, { vb6: 'raises_event' });
+      return;
+    }
 
-    // `Set x = New Foo`  /  `x = New Foo`
+    // `Set x = New Foo` / `x = New Foo`
     for (const nm of t.matchAll(/\bNew\s+([A-Za-z_][\w.]*)/gi)) {
-      this.addRef(fromId, simpleType(nm[1]!)!, 'instantiates', line);
+      const ty = simpleType(nm[1]!);
+      if (!isIntrinsicType(ty)) this.addRef(fromId, ty, 'instantiates', line);
     }
 
-    // `Call Foo` / `Call obj.Bar(...)`
-    m = t.match(/^Call\s+(?:[A-Za-z_]\w*\.)*([A-Za-z_]\w*)/i);
-    if (m) { this.addRef(fromId, m[1]!, 'calls', line); return; }
+    this.scanIdentifiers(t, fromId, line);
+  }
 
-    // Explicit `name(` call sites (incl. member calls obj.Method(...)).
-    let sawCall = false;
-    for (const cm of t.matchAll(/(\.)?\b([A-Za-z_]\w*)\s*\(/g)) {
-      const isMember = !!cm[1];
-      const name = cm[2]!;
-      if (!isMember && (KEYWORDS.has(name.toLowerCase()) || TYPES.has(name.toLowerCase()))) continue;
-      this.addRef(fromId, name, 'calls', line, isMember ? { vb6: 'member_call' } : undefined);
-      sawCall = true;
-    }
-    if (sawCall) return;
+  /**
+   * Walk the identifiers of one statement and emit the references they imply.
+   *
+   * The rules follow VB6 syntax rather than guessing from shape:
+   *  - `A.B` targets B — the member — and never A, which is only the qualifier;
+   *  - `.B` inside a `With` targets B on the With target;
+   *  - a name followed by `(` is a call, unless it was declared as data, in
+   *    which case it is an array access;
+   *  - a name that opens the statement and is not being assigned to is an
+   *    implicit call (`DoWork`, `Log Msg:="x"`);
+   *  - a bare name inside an expression is a variable read and is not emitted.
+   */
+  private scanIdentifiers(t: string, fromId: string, line: number): void {
+    // `Call Foo(1)` — everything after `Call` is one invocation.
+    const callPrefix = t.match(/^Call\s+/i);
+    const body = callPrefix ? t.slice(callPrefix[0].length) : t;
+    const forcedCall = !!callPrefix;
 
-    // Bare implicit call: `Helper total` / `DoEvents` (no `=`, no `(`).
-    if (!/[=(]/.test(t)) {
-      const bm = t.match(/^([A-Za-z_]\w*)\b/);
-      if (bm && !KEYWORDS.has(bm[1]!.toLowerCase()) && !TYPES.has(bm[1]!.toLowerCase())) {
-        this.addRef(fromId, bm[1]!, 'calls', line, { vb6: 'implicit_call' });
+    const ident = /[A-Za-z_]\w*/g;
+    let chainStart = -1; // offset where the current dotted chain begins
+    let match: RegExpExecArray | null;
+
+    while ((match = ident.exec(body)) !== null) {
+      const name = match[0];
+      const start = match.index;
+      const end = start + name.length;
+
+      const prevIdx = prevNonSpace(body, start - 1);
+      const prevCh = prevIdx >= 0 ? body[prevIdx] : '';
+      const isMember = prevCh === '.';
+
+      const nextIdx = nextNonSpace(body, end);
+      const nextCh = nextIdx >= 0 ? body[nextIdx] : '';
+      const invoked = nextCh === '(';
+      const assigned = nextCh === '=' && body[nextIdx + 1] !== '=';
+
+      if (!isMember) {
+        // Head of a new chain. A qualifier (`A` in `A.B`) is never a target.
+        chainStart = start;
+        if (nextCh === '.') continue;
+
+        const lower = name.toLowerCase();
+        if (KEYWORDS.has(lower) || TYPES.has(lower)) continue;
+
+        if (invoked) {
+          const kind = this.declaredVars.has(lower) ? 'references' : 'calls';
+          this.addRef(fromId, name, kind, line, kind === 'calls' ? { vb6: 'call' } : { vb6: 'array_access' });
+          continue;
+        }
+        // Statement-leading name with no parentheses: an implicit call, unless
+        // it is the assignment target or a known variable.
+        if ((start === 0 || forcedCall) && !assigned && !this.declaredVars.has(lower)) {
+          this.addRef(fromId, name, 'calls', line, { vb6: 'implicit_call' });
+        }
+        continue;
+      }
+
+      // --- member of a chain ------------------------------------------------
+      // Who is the member accessed on? Either the identifier before the dot, or
+      // the enclosing `With` when the dot opens the expression.
+      const beforeDot = prevNonSpace(body, prevIdx - 1);
+      const qualifiedByExpr = beforeDot >= 0 && /[\w)\]]/.test(body[beforeDot]!);
+      let qualifier: string | undefined;
+      if (qualifiedByExpr) {
+        const qm = body.slice(0, beforeDot + 1).match(/([A-Za-z_]\w*)\s*$/);
+        qualifier = qm?.[1];
+      } else {
+        qualifier = this.withStack[this.withStack.length - 1];
+        if (qualifier === undefined) continue; // a dot with no owner: skip
+        chainStart = prevIdx; // the chain starts at the dot itself
+      }
+
+      // Members of the VB6 runtime objects are not project symbols.
+      if (qualifier && INTRINSIC_OBJECTS.has(qualifier.toLowerCase())) continue;
+
+      // `Me` is the current type, so the member is unqualified in practice.
+      const meta: Record<string, unknown> = {};
+      if (qualifier && qualifier.toLowerCase() !== 'me') meta.qualifier = qualifier;
+
+      const isChainHead = chainStart === 0 || forcedCall;
+      if (invoked || (isChainHead && !assigned)) {
+        this.addRef(fromId, name, 'calls', line, { ...meta, vb6: 'member_call' });
+      } else {
+        this.addRef(fromId, name, 'references', line, { ...meta, vb6: 'member_ref' });
       }
     }
   }
@@ -580,11 +820,24 @@ export class Vb6FormExtractor {
     const formName = container?.name || 'Form';
     const lines = this.source.split(/\r?\n/);
 
-    // `Object = "{GUID}#ver#0"; "FILE.ocx"` → OCX component reference from the form.
+    // `Object = "{GUID}#ver#0"; "FILE.ocx"` → the OCX component this form uses.
+    // Modelled as an import node so the CLSID and the file are queryable, with
+    // an edge from the form (prompt §8, §15).
     for (let i = 0; i < lines.length; i++) {
-      const om = lines[i]!.match(/^\s*Object\s*=\s*"?\{[^}]*\}[^;]*;\s*"?([^\s";]+)/i);
+      const om = lines[i]!.match(/^\s*Object\s*=\s*"?\{([^}]*)\}[^;]*;\s*"?([^\s";]+)/i);
       if (om) {
-        this.unref(res, formId, om[1]!.replace(/\.(ocx|dll)$/i, ''), i + 1, { vb6: 'ocx_component' });
+        const file = om[2]!;
+        const compNode = mkComponentNode(this.filePath, file, i + 1, 'vb6:ocx-reference', {
+          clsid: om[1],
+          file,
+        });
+        res.nodes.push(compNode);
+        res.edges.push({
+          source: formId,
+          target: compNode.id,
+          kind: 'references',
+          metadata: { vb6: 'ocx_component' },
+        });
       }
       if (/^\s*(Attribute|Option)\b/i.test(lines[i]!)) break; // designer header is over
     }
@@ -606,6 +859,22 @@ export class Vb6FormExtractor {
         if (!rootSeen) { rootSeen = true; stack.push(formId); names.push(instName); continue; }
         const isOcx = !/^VB\./i.test(typeName) && typeName.includes('.');
         const qn = names.slice(1).filter(Boolean).join('::') + '::' + instName;
+
+        // A control array is written as several Begin blocks sharing one name
+        // inside the same container. They are ONE symbol with many indices, so
+        // the first block owns the node and the rest only mark it.
+        const existing = controls.find(
+          (c) => c.qualifiedName === qn && c.name === instName
+        );
+        if (existing) {
+          if (!existing.decorators?.includes('vb6:controlarray')) {
+            existing.decorators = [...(existing.decorators || []), 'vb6:controlarray'];
+          }
+          lastControlIdx = controls.indexOf(existing);
+          stack.push(existing.id);
+          names.push(instName);
+          continue;
+        }
         const node: Node = {
           id: generateNodeId(this.filePath, 'field', qn, i + 1),
           kind: 'field',
@@ -640,8 +909,11 @@ export class Vb6FormExtractor {
       const idxM = t.match(/^Index\s*=\s*(-?\d+)/i);
       if (idxM && lastControlIdx >= 0 && stack[stack.length - 1] === controls[lastControlIdx]!.id) {
         const c = controls[lastControlIdx]!;
-        c.decorators = [...(c.decorators || []), 'vb6:controlarray'];
-        c.docstring = `Control array element, Index = ${idxM[1]}`;
+        if (!c.decorators?.includes('vb6:controlarray')) {
+          c.decorators = [...(c.decorators || []), 'vb6:controlarray'];
+        }
+        const seen = c.docstring?.match(/Index = (.+)$/)?.[1];
+        c.docstring = `Control array, Index = ${seen ? `${seen}, ${idxM[1]}` : idxM[1]}`;
       }
     }
   }
@@ -716,8 +988,16 @@ export class Vb6ProjectExtractor {
           continue;
         }
         // Components: `Object={GUID}#maj.min#lcid; FILE.ocx` (early-bound OCX).
-        m = raw.match(/^\s*Object\s*=\s*"?\{[^}]*\}[^;]*;\s*"?([^\s";]+)/i);
-        if (m) { unresolved.push(ref(proj.node.id, m[1]!.replace(/\.(ocx|dll)$/i, ''), 'imports', i + 1, this.filePath, { vb6: 'ocx_component' })); continue; }
+        m = raw.match(/^\s*Object\s*=\s*"?\{([^}]*)\}[^;]*;\s*"?([^\s";]+)/i);
+        if (m) {
+          const node = mkComponentNode(this.filePath, m[2]!, i + 1, 'vb6:ocx-reference', {
+            clsid: m[1],
+            file: m[2],
+          });
+          nodes.push(node);
+          edges.push({ source: proj.node.id, target: node.id, kind: 'imports', metadata: { vb6: 'ocx_component' } });
+          continue;
+        }
         // COM type-library references: `Reference=*\G{GUID}#maj.min#lcid#path#Description`.
         if (/^\s*Reference\s*=/i.test(raw)) {
           const parts = raw.split('#');
@@ -725,9 +1005,12 @@ export class Vb6ProjectExtractor {
           const desc = parts.length >= 2 ? parts[parts.length - 1]!.trim() : '';
           const libPath = parts.length >= 2 ? parts[parts.length - 2]!.trim() : '';
           const name = desc || memberName(libPath) || guid || 'COMReference';
-          unresolved.push(ref(proj.node.id, name, 'imports', i + 1, this.filePath, {
-            vb6: 'com_reference', ...(guid ? { clsid: guid } : {}), ...(libPath ? { typelib: libPath } : {}),
-          }));
+          const node = mkComponentNode(this.filePath, name, i + 1, 'vb6:com-reference', {
+            ...(guid ? { clsid: guid } : {}),
+            ...(libPath ? { typelib: libPath } : {}),
+          });
+          nodes.push(node);
+          edges.push({ source: proj.node.id, target: node.id, kind: 'imports', metadata: { vb6: 'com_reference' } });
         }
       }
     }
@@ -740,6 +1023,39 @@ function mkFile(filePath: string, endLine: number, id: string): Node {
   return {
     id, kind: 'file', name: filePath.split(/[\\/]/).pop() || filePath, qualifiedName: filePath,
     filePath, language: 'vb6', startLine: 1, endLine, startColumn: 0, endColumn: 0, updatedAt: Date.now(),
+  };
+}
+
+/**
+ * A COM type library or OCX component the project (or a form) depends on.
+ * Kept as an `import` node so the CLSID / type library path survive as
+ * queryable data instead of being lost in an unresolvable reference.
+ */
+function mkComponentNode(
+  filePath: string,
+  rawName: string,
+  line: number,
+  decorator: 'vb6:com-reference' | 'vb6:ocx-reference',
+  metadata: Record<string, unknown>
+): Node {
+  const name = rawName.replace(/\.(ocx|dll|tlb|olb|exe)$/i, '');
+  return {
+    id: generateNodeId(filePath, 'import', `${decorator}:${name}`, line),
+    kind: 'import',
+    name,
+    qualifiedName: name,
+    filePath,
+    language: 'vb6',
+    startLine: line,
+    endLine: line,
+    startColumn: 0,
+    endColumn: 0,
+    decorators: [decorator],
+    docstring: Object.entries(metadata)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(', ') || undefined,
+    updatedAt: Date.now(),
   };
 }
 

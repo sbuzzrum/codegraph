@@ -1,7 +1,6 @@
 {
   "description": "a member call without parentheses reaches the member, not the variable",
-  "status": "known-gap",
-  "gap": "obj.Member with no parentheses is read as a bare call to `obj` (prompt §16)",
+  "status": "pass",
   "expect": {
     "edges": [
       {

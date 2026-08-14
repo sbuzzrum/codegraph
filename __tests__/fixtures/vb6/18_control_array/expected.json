@@ -1,7 +1,6 @@
 {
   "description": "a control array is ONE symbol with several indices, not N duplicate symbols",
-  "status": "known-gap",
-  "gap": "each Index element emits its own node sharing the same qualifiedName (prompt §11)",
+  "status": "pass",
   "expect": {
     "nodes": [
       {

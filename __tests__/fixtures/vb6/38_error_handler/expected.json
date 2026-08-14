@@ -1,6 +1,6 @@
 {
   "description": "error-handling labels and statements are not calls",
-  "status": "known-gap",
+  "status": "pass",
   "expect": {
     "edges": [
       {
@@ -22,6 +22,5 @@
         "name": "Exit"
       }
     ]
-  },
-  "gap": "a line label (ErrHandler:) is parsed as an implicit call, inventing a reference that does not exist (prompt §16, §21)"
+  }
 }

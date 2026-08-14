@@ -1,7 +1,6 @@
 {
   "description": "indexing an array is not a procedure call",
-  "status": "known-gap",
-  "gap": "array indexing is indistinguishable from a call in the extractor, so mItems(3) is recorded as a call (prompt §21)",
+  "status": "pass",
   "expect": {
     "nodes": [
       {

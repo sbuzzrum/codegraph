@@ -1,7 +1,6 @@
 {
   "description": "a Static local keeps its value between calls and is a symbol of its procedure",
-  "status": "known-gap",
-  "gap": "procedure-local declarations (Dim/Static/Const) are not extracted as nodes (prompt §8 Variable)",
+  "status": "pass",
   "expect": {
     "nodes": [
       {

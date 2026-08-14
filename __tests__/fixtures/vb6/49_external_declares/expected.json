@@ -1,7 +1,6 @@
 {
   "description": "external Declare procedures are symbols carrying their library and return type",
-  "status": "known-gap",
-  "gap": "Declare does not capture the return type (`As Long` is dropped) (prompt §16)",
+  "status": "pass",
   "expect": {
     "nodes": [
       {

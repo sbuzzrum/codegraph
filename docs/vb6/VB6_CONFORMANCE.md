@@ -8,73 +8,73 @@
 | Metric | Value |
 |---|---|
 | Fixtures | 55 |
-| Passing | 29 |
-| Known gaps (semantics not implemented yet) | 26 |
+| Passing | 44 |
+| Known gaps (semantics not implemented yet) | 11 |
 | Failing (regression — oracle says pass) | 0 |
 | Ready to promote (gap closed) | 0 |
 | Expected assertions | 127 |
-| Assertions satisfied | 97 |
-| False negatives (expected, missing) | 30 |
-| False positives (forbidden, present) | 10 |
-| Unresolved references | 76 |
+| Assertions satisfied | 114 |
+| False negatives (expected, missing) | 13 |
+| False positives (forbidden, present) | 4 |
+| Unresolved references | 19 |
 | Parse errors | 0 |
 
 ## Per fixture
 
 | Fixture | Outcome | Expected | Found | FN | FP | Unresolved | Gap |
 |---|---|---|---|---|---|---|---|
-| 01_module_public_call | pass | 5 | 5 | 0 | 0 | 1 |  |
-| 02_module_private_call | known-gap | 3 | 2 | 1 | 1 | 1 | module-private scope is not enforced: the generic name matcher links ModB.Outsider to ModA.Internal (prompt §9, §21) |
-| 03_cross_module_call | pass | 1 | 1 | 0 | 0 | 1 |  |
-| 04_class_method_call | pass | 5 | 5 | 0 | 0 | 3 |  |
-| 05_function_return | known-gap | 1 | 1 | 0 | 1 | 1 | intrinsic VB6 types (Long/String/…) are emitted as references and rot in unresolved_refs (prompt §20 — they inflate the metrics) |
-| 06_property_get | pass | 3 | 3 | 0 | 0 | 1 |  |
-| 07_property_let | pass | 1 | 1 | 0 | 0 | 1 |  |
-| 08_property_set | pass | 1 | 1 | 0 | 0 | 1 |  |
+| 01_module_public_call | pass | 5 | 5 | 0 | 0 | 0 |  |
+| 02_module_private_call | known-gap | 3 | 2 | 1 | 1 | 0 | module-private scope is not enforced: the generic name matcher links ModB.Outsider to ModA.Internal (prompt §9, §21) |
+| 03_cross_module_call | pass | 1 | 1 | 0 | 0 | 0 |  |
+| 04_class_method_call | pass | 5 | 5 | 0 | 0 | 0 |  |
+| 05_function_return | pass | 1 | 1 | 0 | 0 | 0 |  |
+| 06_property_get | pass | 3 | 3 | 0 | 0 | 0 |  |
+| 07_property_let | pass | 1 | 1 | 0 | 0 | 0 |  |
+| 08_property_set | pass | 1 | 1 | 0 | 0 | 0 |  |
 | 09_enum | pass | 6 | 6 | 0 | 0 | 0 |  |
 | 10_user_defined_type | pass | 5 | 5 | 0 | 0 | 0 |  |
-| 11_public_variable | pass | 3 | 3 | 0 | 0 | 1 |  |
-| 12_private_variable | pass | 2 | 2 | 0 | 0 | 2 |  |
-| 13_static_variable | known-gap | 2 | 0 | 2 | 0 | 1 | procedure-local declarations (Dim/Static/Const) are not extracted as nodes (prompt §8 Variable) |
-| 14_form_basic | pass | 3 | 3 | 0 | 0 | 1 |  |
+| 11_public_variable | pass | 3 | 3 | 0 | 0 | 0 |  |
+| 12_private_variable | pass | 2 | 2 | 0 | 0 | 0 |  |
+| 13_static_variable | pass | 2 | 2 | 0 | 0 | 0 |  |
+| 14_form_basic | pass | 3 | 3 | 0 | 0 | 0 |  |
 | 15_form_control | pass | 6 | 6 | 0 | 0 | 4 |  |
-| 16_form_event | known-gap | 2 | 1 | 1 | 0 | 2 | no event model: Control_Event handlers are unlinked methods (prompt §13) |
-| 17_form_load | known-gap | 2 | 1 | 1 | 0 | 1 | no event model: Form_* handlers are not bound to the form (prompt §13) |
-| 18_control_array | known-gap | 1 | 0 | 1 | 0 | 3 | each Index element emits its own node sharing the same qualifiedName (prompt §11) |
-| 19_usercontrol | pass | 6 | 6 | 0 | 0 | 2 |  |
+| 16_form_event | known-gap | 2 | 1 | 1 | 0 | 1 | no event model: Control_Event handlers are unlinked methods (prompt §13) |
+| 17_form_load | known-gap | 2 | 1 | 1 | 0 | 0 | no event model: Form_* handlers are not bound to the form (prompt §13) |
+| 18_control_array | pass | 1 | 1 | 0 | 0 | 1 |  |
+| 19_usercontrol | pass | 6 | 6 | 0 | 0 | 1 |  |
 | 20_event_declaration | pass | 2 | 2 | 0 | 0 | 0 |  |
 | 21_raiseevent | known-gap | 1 | 0 | 1 | 0 | 0 | the edge exists but its provenance is dropped: unresolved_refs has no metadata column, so the extractor hint never reaches the edge (prompt §14) |
-| 22_withevents | known-gap | 4 | 2 | 2 | 0 | 1 | WithEvents binding is not implemented: the handler is an unlinked method (prompt §13) |
-| 23_ocx_event_handler | known-gap | 2 | 1 | 1 | 0 | 3 | no event model for OCX controls (prompt §13 HANDLES_OCX_EVENT) |
-| 24_with_statement | known-gap | 2 | 0 | 2 | 0 | 2 | With blocks are ignored: `.Member` statements produce no reference at all (prompt §16) |
-| 25_implements | pass | 1 | 1 | 0 | 0 | 1 |  |
-| 26_default_form_instance | known-gap | 1 | 0 | 1 | 0 | 1 | a qualified call without parentheses resolves to the qualifier: Boot --calls--> Form1 instead of Reload (prompt §16) |
-| 27_new_instance | pass | 1 | 1 | 0 | 0 | 1 |  |
+| 22_withevents | known-gap | 4 | 2 | 2 | 0 | 0 | WithEvents binding is not implemented: the handler is an unlinked method (prompt §13) |
+| 23_ocx_event_handler | known-gap | 2 | 1 | 1 | 0 | 1 | no event model for OCX controls (prompt §13 HANDLES_OCX_EVENT) |
+| 24_with_statement | pass | 2 | 2 | 0 | 0 | 0 |  |
+| 25_implements | pass | 1 | 1 | 0 | 0 | 0 |  |
+| 26_default_form_instance | pass | 1 | 1 | 0 | 0 | 0 |  |
+| 27_new_instance | pass | 1 | 1 | 0 | 0 | 0 |  |
 | 28_as_new | pass | 2 | 2 | 0 | 0 | 0 |  |
-| 29_module_qualified_call | known-gap | 1 | 0 | 1 | 1 | 1 | a qualified call without parentheses resolves to the qualifier: Run --calls--> ModA instead of Process (prompt §16) |
-| 30_class_qualified_call | known-gap | 1 | 0 | 1 | 1 | 1 | obj.Member with no parentheses is read as a bare call to `obj` (prompt §16) |
-| 31_unqualified_project_call | known-gap | 1 | 0 | 1 | 1 | 2 | project scope is not modelled: an unqualified call is name-matched to a class member, which VB6 never reaches from outside the class (prompt §9, §21) |
-| 32_same_name_different_scope | pass | 1 | 1 | 0 | 0 | 3 |  |
-| 33_optional_parameters | known-gap | 2 | 1 | 1 | 0 | 1 | a call written with named arguments (Name:=value) is not detected at all — the `:=` makes the statement look like an assignment (prompt §16) |
-| 34_byref_byval | pass | 2 | 2 | 0 | 0 | 3 |  |
-| 35_paramarray | pass | 2 | 2 | 0 | 0 | 2 |  |
+| 29_module_qualified_call | pass | 1 | 1 | 0 | 0 | 0 |  |
+| 30_class_qualified_call | pass | 1 | 1 | 0 | 0 | 0 |  |
+| 31_unqualified_project_call | known-gap | 1 | 0 | 1 | 1 | 0 | project scope is not modelled: an unqualified call is name-matched to a class member, which VB6 never reaches from outside the class (prompt §9, §21) |
+| 32_same_name_different_scope | pass | 1 | 1 | 0 | 0 | 0 |  |
+| 33_optional_parameters | pass | 2 | 2 | 0 | 0 | 0 |  |
+| 34_byref_byval | pass | 2 | 2 | 0 | 0 | 0 |  |
+| 35_paramarray | pass | 2 | 2 | 0 | 0 | 1 |  |
 | 36_call_statement | pass | 1 | 1 | 0 | 0 | 0 |  |
 | 37_implicit_call | pass | 2 | 2 | 0 | 0 | 0 |  |
-| 38_error_handler | known-gap | 1 | 1 | 0 | 1 | 1 | a line label (ErrHandler:) is parsed as an implicit call, inventing a reference that does not exist (prompt §16, §21) |
+| 38_error_handler | pass | 1 | 1 | 0 | 0 | 0 |  |
 | 39_timer_event | known-gap | 2 | 1 | 1 | 0 | 1 | no event model: the Timer handler is an unlinked method (prompt §13) |
-| 40_com_reference | known-gap | 4 | 0 | 4 | 0 | 2 | references are emitted as unresolved refs only — no COMReference/OCXReference node is created, so CLSID and type library are not queryable (prompt §8, §15) |
-| 41_createobject | known-gap | 1 | 0 | 1 | 0 | 2 | the ProgID string is discarded: CreateObject is recorded as a plain unresolved call, so early vs late binding cannot be told apart (prompt §15) |
-| 42_getobject | pass | 0 | 0 | 0 | 0 | 2 |  |
+| 40_com_reference | pass | 4 | 4 | 0 | 0 | 0 |  |
+| 41_createobject | pass | 1 | 1 | 0 | 0 | 2 |  |
+| 42_getobject | pass | 0 | 0 | 0 | 0 | 1 |  |
 | 43_late_binding | known-gap | 1 | 0 | 1 | 1 | 2 | late-bound member calls are name-matched to any class member with that name, presenting a guess as a static call (prompt §15, §21) |
 | 44_conditional_compilation | pass | 2 | 2 | 0 | 0 | 0 |  |
 | 45_vbp_project_membership | pass | 4 | 4 | 0 | 0 | 0 |  |
 | 46_vbg_multiple_projects | pass | 5 | 5 | 0 | 0 | 0 |  |
-| 47_frm_object_reference | known-gap | 2 | 1 | 1 | 0 | 3 | no OCXReference node exists, so the form-to-component link stays an unresolved ref (prompt §8, §15) |
+| 47_frm_object_reference | pass | 2 | 2 | 0 | 0 | 1 |  |
 | 48_ctl_public_api | pass | 4 | 4 | 0 | 0 | 0 |  |
-| 49_external_declares | known-gap | 4 | 3 | 1 | 0 | 1 | Declare does not capture the return type (`As Long` is dropped) (prompt §16) |
+| 49_external_declares | pass | 4 | 4 | 0 | 0 | 0 |  |
 | 50_unresolved_symbol | pass | 1 | 1 | 0 | 0 | 1 |  |
-| 51_private_homonyms_unreachable | known-gap | 3 | 2 | 1 | 1 | 5 | the caller in ModC is bound to ModA.Compute although both candidates are Private — a false edge where UNRESOLVED is the only correct answer (prompt §21) |
+| 51_private_homonyms_unreachable | known-gap | 3 | 2 | 1 | 1 | 0 | the caller in ModC is bound to ModA.Compute although both candidates are Private — a false edge where UNRESOLVED is the only correct answer (prompt §21) |
 | 52_two_controls_same_event | known-gap | 2 | 0 | 2 | 0 | 2 | no event model, so neither binding exists (prompt §13, §21) |
-| 53_line_continuation | pass | 1 | 1 | 0 | 0 | 1 |  |
-| 54_comments_and_strings | known-gap | 1 | 1 | 0 | 1 | 2 | string literals are not neutralised before scanning for calls, so an identifier inside a string ("… Ghost3(1) …") becomes a call reference (prompt §21). Comments are handled correctly. |
-| 55_array_access_is_not_a_call | known-gap | 2 | 1 | 1 | 1 | 2 | array indexing is indistinguishable from a call in the extractor, so mItems(3) is recorded as a call (prompt §21) |
+| 53_line_continuation | pass | 1 | 1 | 0 | 0 | 0 |  |
+| 54_comments_and_strings | pass | 1 | 1 | 0 | 0 | 0 |  |
+| 55_array_access_is_not_a_call | pass | 2 | 2 | 0 | 0 | 0 |  |

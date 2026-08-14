@@ -1,7 +1,6 @@
 {
   "description": "a Module.Procedure call reaches the procedure, not the module",
-  "status": "known-gap",
-  "gap": "a qualified call without parentheses resolves to the qualifier: Run --calls--> ModA instead of Process (prompt §16)",
+  "status": "pass",
   "expect": {
     "edges": [
       {

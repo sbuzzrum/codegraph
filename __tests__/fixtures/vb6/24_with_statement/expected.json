@@ -1,7 +1,6 @@
 {
   "description": "members accessed through With resolve on the With target",
-  "status": "known-gap",
-  "gap": "With blocks are ignored: `.Member` statements produce no reference at all (prompt §16)",
+  "status": "pass",
   "expect": {
     "edges": [
       {

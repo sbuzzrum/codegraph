@@ -8,7 +8,6 @@
         "kind": "references",
         "from": "ReadBarcode",
         "to": "ItemRead",
-        "provenance": "static",
         "metadata": {
           "vb6": "raises_event"
         }
