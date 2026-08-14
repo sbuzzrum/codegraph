@@ -1,0 +1,3 @@
+Type=OleDll
+Class=C_Widget; C_Widget.cls
+Name="WidgetLib"

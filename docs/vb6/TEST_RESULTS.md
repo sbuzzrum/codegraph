@@ -62,7 +62,7 @@ npm test
 
 ```
 Test Files  164 passed | 15 skipped (179)
-     Tests  2966 passed | 178 skipped (3144)
+     Tests  2968 passed | 178 skipped (3146)
 ```
 
 No failures. VB6 support adds a language, three extractors, a resolver branch
@@ -212,6 +212,7 @@ Three defects, each found by asking where the missed calls went:
 | **Parameters were not nodes.** A parameter is very often the qualifier of a member call (`pItem.Refresh`); with no symbol for it, the call had nothing to resolve against. `NodeKind parameter` existed and the semantic model claimed it — it was a gap, not a decision. | ~14k references | `62_parameter_as_qualifier` |
 | **The qualifier was looked up only in the calling file.** A VB6 application keeps its shared objects in `Public` module variables, used as qualifiers everywhere; the resolver could not see them. Now it follows the same scope chain it uses for calls. | ~10k | `63_global_object_qualifier` |
 | **Member chains stopped at the first unknown link.** In `Adodc1.Recordset.MoveNext` the immediate qualifier (`Recordset`) names nothing, so the whole expression was lost — including the link to `Adodc1`, which is a control that IS in the graph. The chain root is now a second chance. | ~17k | `64_member_chain_root` |
+| **A duplicate type was picked by indexing order.** A codebase with several copies of the same class or UserControl resolved members against whichever copy happened to be indexed first — on the real tree that attributed ~4,800 member references to a stray duplicate instead of the copy that actually ships. Candidates are now ranked: the caller's own project first, then any project, then files in no project at all. | ~4.8k edges pointing at the wrong file | `66_duplicate_type_prefers_project` |
 | **A keyword before a dot was read as a qualifier.** `If .Recordcount > 0 Then` inside a `With` attributed `Recordcount` to `If` — inventing a qualifier and losing the real one. Found by noticing `If` among the top unresolved qualifiers, which is nonsense on its face. | ~1k, and wrong rather than merely missing | `65_with_member_after_keyword` |
 
 The last line of that table is the honest one: of the calls still missed,

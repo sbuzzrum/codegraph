@@ -122,6 +122,26 @@ export class Vb6Resolver {
     return map;
   }
 
+  /**
+   * Order same-named types by how plausibly they are the one meant, when a
+   * codebase carries several copies of the same class or UserControl:
+   *
+   *   1. a copy in one of the caller's own projects;
+   *   2. a copy that belongs to SOME project — it is at least compiled;
+   *   3. a stray file in no project at all.
+   *
+   * Without this the winner was whichever copy happened to be indexed first,
+   * which on a real tree attributed thousands of member references to a stray
+   * duplicate instead of the copy that actually ships.
+   */
+  private rankTypes(types: Node[], callerFile: string): Node[] {
+    const rank = (n: Node): number => {
+      if (this.shareProject(callerFile, n.filePath) === true) return 0;
+      return this.projectIndex().has(n.filePath) ? 1 : 2;
+    };
+    return [...types].sort((a, b) => rank(a) - rank(b));
+  }
+
   /** True when `file` is part of a project whose NAME is `projectName`. */
   private belongsToProjectNamed(file: string, projectName: string): boolean {
     const owners = this.projectIndex().get(file);
@@ -215,7 +235,10 @@ export class Vb6Resolver {
   private resolveQualified(ref: UnresolvedRef, qualifier: string, visible: Node[]): ResolvedRef | null {
     // The qualifier may name a module/class/form directly (`ModA.Process`,
     // `Form1.Reload` through the default instance).
-    for (const container of this.lookup(qualifier).filter((n) => CONTAINER_KINDS.has(n.kind))) {
+    for (const container of this.rankTypes(
+      this.lookup(qualifier).filter((n) => CONTAINER_KINDS.has(n.kind)),
+      ref.filePath
+    )) {
       const members = visible.filter((n) => n.filePath === container.filePath && n.id !== container.id);
       const hit = this.pick(ref, members, { scope: 'module', qualifier }, 'qualified-name');
       if (hit) return hit;
@@ -227,7 +250,11 @@ export class Vb6Resolver {
     const typeName = variable?.returnType;
 
     if (typeName && !LATE_BOUND_TYPES.has(typeName.toLowerCase())) {
-      for (const type of this.lookup(typeName).filter((n) => CONTAINER_KINDS.has(n.kind))) {
+      const types = this.rankTypes(
+        this.lookup(typeName).filter((n) => CONTAINER_KINDS.has(n.kind)),
+        ref.filePath
+      );
+      for (const type of types) {
         const members = visible.filter((n) => n.filePath === type.filePath && n.id !== type.id);
         const hit = this.pick(ref, members, { scope: 'type', qualifier }, 'instance-method');
         if (hit) return hit;

@@ -7,16 +7,16 @@
 
 | Metric | Value |
 |---|---|
-| Fixtures | 65 |
-| Passing | 65 |
+| Fixtures | 66 |
+| Passing | 66 |
 | Known gaps (semantics not implemented yet) | 0 |
 | Failing (regression — oracle says pass) | 0 |
 | Ready to promote (gap closed) | 0 |
-| Expected assertions | 152 |
-| Assertions satisfied | 152 |
+| Expected assertions | 153 |
+| Assertions satisfied | 153 |
 | False negatives (expected, missing) | 0 |
 | False positives (forbidden, present) | 0 |
-| Unresolved references | 22 |
+| Unresolved references | 23 |
 | Parse errors | 0 |
 
 ## Per fixture
@@ -88,3 +88,4 @@
 | 63_global_object_qualifier | pass | 1 | 1 | 0 | 0 | 0 |  |
 | 64_member_chain_root | pass | 1 | 1 | 0 | 0 | 1 |  |
 | 65_with_member_after_keyword | pass | 2 | 2 | 0 | 0 | 0 |  |
+| 66_duplicate_type_prefers_project | pass | 1 | 1 | 0 | 0 | 1 |  |

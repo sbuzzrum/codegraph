@@ -1,0 +1,14 @@
+{
+  "description": "with two copies of a type, a member resolves on the copy that belongs to a project, not on the stray one",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      { "kind": "references", "from": "Run", "to": "Enabled2", "toFile": "C_Widget.cls" }
+    ]
+  },
+  "forbid": {
+    "edges": [
+      { "kind": "references", "from": "Run", "to": "Enabled2", "toFile": "C_WidgetStray.cls" }
+    ]
+  }
+}

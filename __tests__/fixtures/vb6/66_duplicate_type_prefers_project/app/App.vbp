@@ -1,0 +1,3 @@
+Type=Exe
+Module=ModUse; ModUse.bas
+Name="App"

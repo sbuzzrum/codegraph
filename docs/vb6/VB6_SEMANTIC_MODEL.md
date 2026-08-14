@@ -193,6 +193,13 @@ Fixture 64.
 Several members of one chain on one line collapse into a single edge: edge
 identity includes line and column, by design.
 
+### Duplicate types
+
+Real codebases carry copies of the same class or UserControl in several
+folders. When a name resolves to more than one type, candidates are ranked by
+the caller's own project first, then any project at all, then files belonging
+to no project — a stray copy never wins over the one that ships. Fixture 66.
+
 ## Control types name their library
 
 A designer writes a control's type as `Library.Control`
