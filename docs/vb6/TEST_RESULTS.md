@@ -153,23 +153,37 @@ project node, so project scope is available from the first reference on.
 
 ### Effect of the fixes
 
-| | before | after |
-|---|---|---|
-| Edges (non-containment) | 141,648 | **177,036** |
-| Unresolved references | 355,667 | **319,139** |
-| Resolution rate | 28.5% | **35.7%** |
+Two rounds. The first fixed the three defects above; the second acted on what
+the measurements then showed — that most of the residue was member access on
+types outside the graph, and that same-named UserControls across projects were
+not being told apart.
 
-### What the remaining 319k unresolved actually are
+| | before | after round 1 | after round 2 |
+|---|---|---|---|
+| Edges (non-containment) | 141,648 | 177,036 | **269,496** |
+| Unresolved references | 355,667 | 319,139 | **219,430** |
+| Resolution rate | 28.5% | 35.7% | **55.1%** |
 
-| Category | Share |
-|---|---|
-| Member access on an object (`.Text`, `.Value`, `.Fields`, …) | **61.9%** |
-| Name that exists nowhere in the project (VB6 intrinsics, COM methods) | 23.6% |
+Round 2 added two things:
 
-The dominant category is not a defect: it is member access on types that are
-**not in the graph** — standard VB controls and external COM objects, whose
-definitions live in type libraries this engine deliberately does not read
-(`VB6_LIMITATIONS.md`). Resolving `.Text` to some same-named property
+- **Member access binds to the object** (`txtName.Text` → `txtName`, carrying
+  `member: 'Text'`): 91,268 references that were previously lost became usable
+  edges, and "what touches this control" became answerable. On the measured
+  codebase one OCX control alone had 666 accesses, all invisible before.
+- **A control's library picks its UserControl** (`MyEditOCX.MyEdit`): 1,198
+  control instances now reach the UserControl type in the sibling ActiveX
+  project — the client → OCX link of §12, which had been failing wherever two
+  projects defined the same control name.
+
+### What the remaining 219k unresolved are
+
+What is left is dominated by names with no symbol anywhere in the project —
+VB6 intrinsic functions (`Len`, `MsgBox`, `IIf`), methods of COM objects, and
+the type names of standard controls (`Label`, `TextBox`, `CommandButton`) —
+plus member access whose qualifier is itself unknown.
+
+None of it is resolvable without reading type libraries, which is a deliberate
+boundary (`VB6_LIMITATIONS.md`). Resolving `.Text` to some same-named property
 elsewhere in the project would be exactly the false certainty §21 forbids.
 
 A directory-proximity fallback was measured for the files that belong to no

@@ -919,7 +919,21 @@ export class Vb6FormExtractor {
         // A control instance IS OF the control's type (INSTANCE_OF, §8): a
         // `type_of` reference, so resolution treats it as a type position and
         // can reach a UserControl declared elsewhere in the project.
-        this.unref(res, node.id, simpleType(typeName), i + 1, isOcx ? { vb6: 'ocx_type' } : { vb6: 'control_type' }, 'type_of');
+        //
+        // The designer writes the type as `Library.Control`
+        // (`MyEditOCX.MyEdit`), and that library IS the name of the ActiveX
+        // project that builds the OCX. Keeping it as the qualifier is what
+        // lets resolution pick the right UserControl when several projects
+        // define the same control name — the client→OCX link of §12.
+        const library = typeName.includes('.') ? typeName.slice(0, typeName.lastIndexOf('.')) : undefined;
+        this.unref(
+          res,
+          node.id,
+          simpleType(typeName),
+          i + 1,
+          { vb6: isOcx ? 'ocx_type' : 'control_type', ...(library ? { qualifier: library } : {}) },
+          'type_of'
+        );
         controls.push(node);
         lastControlIdx = controls.length - 1;
         stack.push(node.id);
@@ -952,10 +966,12 @@ export class Vb6FormExtractor {
     meta: Record<string, unknown>,
     kind: UnresolvedReference['referenceKind'] = 'references'
   ): void {
+    const qualifier = meta.qualifier;
     res.unresolvedReferences.push({
       fromNodeId: fromId,
       referenceName: name,
       referenceKind: kind,
+      candidates: typeof qualifier === 'string' && qualifier !== '' ? [`${qualifier}.${name}`] : undefined,
       line,
       column: 0,
       filePath: this.filePath,

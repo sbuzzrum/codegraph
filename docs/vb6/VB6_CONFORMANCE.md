@@ -7,16 +7,16 @@
 
 | Metric | Value |
 |---|---|
-| Fixtures | 59 |
-| Passing | 59 |
+| Fixtures | 61 |
+| Passing | 61 |
 | Known gaps (semantics not implemented yet) | 0 |
 | Failing (regression — oracle says pass) | 0 |
 | Ready to promote (gap closed) | 0 |
-| Expected assertions | 140 |
-| Assertions satisfied | 140 |
+| Expected assertions | 145 |
+| Assertions satisfied | 145 |
 | False negatives (expected, missing) | 0 |
 | False positives (forbidden, present) | 0 |
-| Unresolved references | 22 |
+| Unresolved references | 21 |
 | Parse errors | 0 |
 
 ## Per fixture
@@ -37,7 +37,7 @@
 | 12_private_variable | pass | 2 | 2 | 0 | 0 | 0 |  |
 | 13_static_variable | pass | 2 | 2 | 0 | 0 | 0 |  |
 | 14_form_basic | pass | 3 | 3 | 0 | 0 | 0 |  |
-| 15_form_control | pass | 6 | 6 | 0 | 0 | 4 |  |
+| 15_form_control | pass | 6 | 6 | 0 | 0 | 3 |  |
 | 16_form_event | pass | 2 | 2 | 0 | 0 | 1 |  |
 | 17_form_load | pass | 2 | 2 | 0 | 0 | 0 |  |
 | 18_control_array | pass | 1 | 1 | 0 | 0 | 1 |  |
@@ -65,7 +65,7 @@
 | 40_com_reference | pass | 4 | 4 | 0 | 0 | 0 |  |
 | 41_createobject | pass | 1 | 1 | 0 | 0 | 2 |  |
 | 42_getobject | pass | 0 | 0 | 0 | 0 | 1 |  |
-| 43_late_binding | pass | 1 | 1 | 0 | 0 | 3 |  |
+| 43_late_binding | pass | 1 | 1 | 0 | 0 | 2 |  |
 | 44_conditional_compilation | pass | 2 | 2 | 0 | 0 | 0 |  |
 | 45_vbp_project_membership | pass | 4 | 4 | 0 | 0 | 0 |  |
 | 46_vbg_multiple_projects | pass | 5 | 5 | 0 | 0 | 0 |  |
@@ -82,3 +82,5 @@
 | 57_project_scope_isolation | pass | 2 | 2 | 0 | 0 | 0 |  |
 | 58_implicit_visibility | pass | 5 | 5 | 0 | 0 | 0 |  |
 | 59_public_array_cross_module | pass | 1 | 1 | 0 | 0 | 0 |  |
+| 60_member_on_external_type | pass | 2 | 2 | 0 | 0 | 1 |  |
+| 61_ocx_type_from_sibling_project | pass | 3 | 3 | 0 | 0 | 0 |  |

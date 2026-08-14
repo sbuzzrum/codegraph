@@ -117,16 +117,18 @@ false edge).
 of loose files where you can, and expect weaker resolution for files that
 belong to no project.
 
-## Most unresolved references are member access on external types
+## Member access on external types resolves to the OBJECT, not the member
 
-This is the practical shape of the type-library limitation above, and it is
-worth stating plainly because it dominates the numbers: on a real codebase,
-**62% of unresolved references were member access on an object** — `.Text` on
-a control, `.Fields` on a recordset — whose type is not in the graph.
+`txtName.Text` cannot resolve `Text` — the type is not in the graph — so the
+reference attaches to `txtName` instead, carrying `metadata.member = 'Text'`.
 
-They are not errors and they are not resolvable by trying harder: binding
-`.Text` to some same-named property elsewhere in the project is precisely the
-false certainty the specification forbids. VB6 code leans heavily on controls
-and COM, so a graph of a VB6 application will always be denser in structure
-(who calls what, who handles which event) than in data flow through control
-properties.
+**Consequence.** "What touches this control" works and is accurate. "Who reads
+the Text property specifically" does not: you get the member name on the edge,
+but there is no node for it, so it cannot be queried as a symbol. The same
+holds for late-bound calls, which bind to the variable and never to a guessed
+target.
+
+This is a deliberate trade — the alternative was either no edge at all (which
+threw away the object link too) or inventing nodes for members we have not
+seen. On a real codebase it turned 91,268 references that were previously lost
+into usable edges.

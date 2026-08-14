@@ -11,25 +11,30 @@ member access on an object whose type is not in the graph** (`.Text`, `.Value`,
 `.Caption` on controls; `.Fields`, `.Recordset` on COM objects), plus another
 31k `type_of` references naming standard control types.
 
-So yes: external types dominate the unresolved set, decisively. That makes
-question 2 the highest-value open item — and it also means the resolution rate
-on a VB6 application will always look low without it, however good the resolver
-gets.
+So yes: external types dominate the unresolved set, decisively.
 
-## 2. Should the standard VB6 control types ship as built-in nodes?
+**What was done about it:** rather than importing those types, the reference
+now binds to the object the member was used on. That lifted the resolution
+rate from 35.7% to 55.1% and made "what touches this control" answerable,
+which is the question the type-library data was mostly wanted for. See
+question 2 for what remains genuinely missing.
 
-Now the highest-value open item, given (1). `VB.CommandButton`, `VB.TextBox`,
-`VB.Timer` and their members are identical in every VB6 installation and could
-ship as a small built-in table, so a control instance has a target and `.Text`
-resolves.
+## 2. Should the standard VB6 control types ship as built-in nodes? — **much less urgent**
 
-**Against:** they are not code in the project; inventing nodes for them blurs
-"indexed" with "known", and the table has to be maintained.
-**For:** on the measured codebase it is the single largest category of
-unresolved references, by a wide margin.
+This was the highest-value item until member access was made to bind to the
+OBJECT rather than being dropped. That change recovered 91,268 references and
+answered the question people actually ask — *what touches this control* —
+without inventing a single node.
 
-A middle option worth considering: synthesise them as external nodes marked
-plainly as such, so they are visibly not project code.
+What a built-in table would still add: the ability to query a control's
+members as symbols (`who reads TextBox.Text`), and a target for the ~31k
+`type_of` references naming standard control types. Both are real but neither
+is load-bearing, and the table would have to be written and maintained while
+covering only VB's own controls — third-party OCX types, which are abundant in
+real codebases, would still be external.
+
+**Verdict for now: not worth it.** Revisit only if querying control members as
+symbols turns out to matter in practice.
 
 ## 3. Multi-project resolution across a `.vbg` — **answered and implemented**
 

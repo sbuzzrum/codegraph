@@ -7,7 +7,7 @@ Ultimo aggiornamento: 2026-08-14 — **tutte le fasi completate, §24 inclusa**.
 Motore VB6 completo (extractor + resolver + binding eventi), MCP verificato,
 documentazione e assessment prodotti, **validazione real-world eseguita** su una
 codebase VB6 di produzione (2.163 file, 0 file non parsati).
-Suite di conformità **59/59**, 0 gap, 0 falsi positivi, 0 regressioni (2961 test verdi).
+Suite di conformità **62/62**, 0 gap, 0 falsi positivi, 0 regressioni.
 Giudizio (§25): **READY FOR USE**.
 
 Committato e pushato su `origin/main`:
@@ -274,12 +274,22 @@ La membership di progetto doveva essere leggibile **senza dipendere dall'ordine 
 `contains` che la descrivono sono prodotti dalla stessa pass che ne ha bisogno): l'extractor del `.vbp`
 registra ora i file membri sul nodo progetto.
 
-**Effetto:** edge non-contains 141.648 → **177.036**; tasso di risoluzione 28,5% → **35,7%**.
+**Effetto round 1:** edge non-contains 141.648 → 177.036; tasso di risoluzione 28,5% → 35,7%.
 
-**Natura del residuo:** il 61,9% degli unresolved sono accessi a membri di oggetti il cui tipo non è nel
-graph (controlli VB standard, oggetti COM) — esterni per costruzione, non difetti del resolver. Un
-ripiego per prossimità di directory recupererebbe l'1,7% al prezzo di un'euristica che può sbagliare:
-**scartato** (§21).
+**Round 2** — dalla misura del residuo (il 61,9% erano accessi a membri di tipi non indicizzati) sono
+emersi altri due difetti, entrambi con fixture:
+
+| Difetto | Fixture |
+|---|---|
+| l'accesso a un membro di un tipo esterno (`txtName.Text`) non produceva **alcun** edge: si perdeva anche il legame con l'oggetto, che invece è nel graph | `60_member_on_external_type` |
+| il designer scrive il tipo come `Libreria.Controllo` e l'extractor scartava la libreria: con due UserControl omonimi in progetti diversi il tipo non si risolveva (collegamento client→OCX del §12) | `61_ocx_type_from_sibling_project` |
+
+**Effetto round 2:** edge non-contains → **269.496**; tasso di risoluzione → **55,1%**.
+91.268 riferimenti a membri ora legati all'oggetto su cui sono usati (con il nome del membro sull'edge),
+1.198 controlli collegati al proprio UserControl nel progetto ActiveX fratello.
+
+Un ripiego per prossimità di directory (per i file fuori da ogni `.vbp`) recupererebbe l'1,7% al prezzo
+di un'euristica che può sbagliare: **scartato** (§21).
 
 **Eventi su scala reale:** 12.229 binding sintetizzati; il 38% dei metodi con nome `X_Y` resta non
 legato — è il gate di precisione che rifiuta di indovinare dove il produttore non esiste nel file.

@@ -1,0 +1,4 @@
+Type=Exe
+Form=Form1.frm
+Object={11111111-2222-3333-4444-555555555555}#1.0#0; MyEdit.ocx
+Name="App"

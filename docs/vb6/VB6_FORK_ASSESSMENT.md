@@ -14,9 +14,9 @@ The engine is complete, conformant, free of regressions, and now validated
 against a production VB6 codebase: 2,163 files, 141k nodes, 321k edges, **zero
 files that failed to yield symbols**, indexed in under ten seconds.
 
-That validation exposed three real defects — all of them general, none of them
+That validation exposed five real defects — all of them general, none of them
 specific to that codebase. Each became a generic fixture, then a fix, then a
-re-validation, in the order §24 prescribes. The conformance suite is 59/59.
+re-validation, in the order §24 prescribes. The conformance suite is 62/62.
 
 Use it, having read `VB6_LIMITATIONS.md` first. The limits are deliberate and
 each states what happens instead of guessing — and one of them shapes
@@ -71,17 +71,18 @@ never at runtime.
 
 ### Automated tests — **good**
 
-59 conformance fixtures, 140 assertions, all passing: 0 false negatives, 0 false positives, 0
+62 conformance fixtures, all passing: 0 false negatives, 0 false positives, 0
 parse errors. The oracle is machine-readable and states
 correct VB6 semantics rather than current behaviour, and its `forbid` half
 tests specifically for edges that must *not* exist — which is what a name
 matcher gets wrong and what §21 ranks above recall.
 
-Nine fixtures beyond the specification's 50 cover cases found while building
+Twelve fixtures beyond the specification's 50 cover cases found while building
 and while validating: private homonyms, cross-binding of same-named events,
 line continuation, strings and comments, array indexing, body ranges, and —
-from the real codebase — project-scope isolation, implicit visibility, and
-cross-module array access.
+from the real codebase — project-scope isolation, implicit visibility,
+cross-module array access, member access on an external type, and picking a
+UserControl by the OCX library that declares it.
 
 ### Regressions — **none**
 
@@ -105,10 +106,11 @@ produces no edge, and synthesized event bindings are marked as synthesized
 with their wiring site.
 
 On the production codebase: every file parsed, 12,229 event bindings were
-recovered, and the project-scope fix raised resolution from 28.5% to 35.7%.
-The residue is dominated (62%) by member access on types that are not in the
-graph — external by nature, not a resolver failure. Full numbers in
-`TEST_RESULTS.md`.
+recovered, and two rounds of fixes raised resolution from 28.5% to **55.1%** —
+project scope first, then binding member access to the object it is used on
+and letting a control's library pick its UserControl. What remains unresolved
+is names with no symbol in the project: VB6 intrinsics, COM methods, and the
+type names of standard controls. Full numbers in `TEST_RESULTS.md`.
 
 ### MCP integration quality — **good**
 
@@ -136,16 +138,17 @@ reference edges within the indexed source, event flow including `WithEvents`
 and OCX handlers, the enforcement of `Private`/project scope, and the absence
 of invented edges.
 
-**Do not expect:** members of standard VB controls or COM objects to resolve,
+**Do not expect:** members of standard VB controls or COM objects to exist as
+symbols (a reference binds to the object, carrying the member name),
 conditional-compilation branches to be filtered, or default properties to be
 applied. And index by `.vbp`/`.vbg` where you can — files that belong to no
 indexed project resolve less well, by design.
 
-**Known open items**, none of them blocking, all in `OPEN_QUESTIONS.md`: the
-highest-value one is whether the standard VB6 control types should ship as
-built-in nodes, which is what would move the resolution rate materially. The
-agent A/B flow validation the repository expects per language has not been run
-for VB6.
+**Known open items**, none of them blocking, all in `OPEN_QUESTIONS.md`.
+Shipping the standard VB6 control types as built-in nodes was the highest-value
+one until member access was made to bind to the object; it is now a
+nice-to-have. The agent A/B flow validation the repository expects per language
+has not been run for VB6.
 
 ## Honesty note on the validation
 

@@ -1,0 +1,32 @@
+{
+  "description": "a control names its OCX library, which picks the right UserControl when two projects define the same name",
+  "status": "pass",
+  "expect": {
+    "nodes": [
+      {
+        "kind": "class",
+        "name": "MyEdit",
+        "decorators": [
+          "vb6:usercontrol"
+        ]
+      },
+      {
+        "kind": "field",
+        "name": "txtCustom",
+        "decorators": [
+          "vb6:control",
+          "vb6:ocx"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "kind": "type_of",
+        "from": "txtCustom",
+        "to": "MyEdit",
+        "toFile": "MyEdit.ctl",
+        "count": 1
+      }
+    ]
+  }
+}

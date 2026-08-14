@@ -59,6 +59,23 @@ as such: they show up as dynamic hops with the wiring site attached
 (`@Form1.frm:28`), never as static calls. A handler is bound only when its
 producer actually exists in the same file.
 
+## Members of controls and COM objects
+
+`txtName.Text`, `rs.Fields`, `MSComm1.Output` — the member belongs to a type
+that is not in the graph, so it cannot be resolved. The reference binds to the
+**object** instead, carrying the member name on the edge:
+
+```
+Apply --references--> txtName        (member: "Text")
+```
+
+So "what touches this control", "which procedures use this recordset" and
+"where is this OCX driven from" all work. What does not work is querying the
+member itself as a symbol — there is no node for `TextBox.Text`.
+
+The same applies to late binding: a call through a variable declared
+`As Object` binds to the variable, never to a guessed target.
+
 ## What "unresolved" means here
 
 Where VB6 semantics do not determine a target, CodeGraph draws **no edge**.
@@ -69,8 +86,8 @@ approach:
 - an unqualified name never reaches a class or form member from outside it;
 - when two same-named `Private` procedures are both out of scope, neither is
   chosen;
-- a call through a variable declared `As Object` is late-bound and has no
-  static target;
+- a call through a variable declared `As Object` never reaches a guessed
+  member (it binds to the variable, as above);
 - a `CreateObject("X.Y")` ProgID is recorded, not resolved to a local type.
 
 A missing edge here means "VB6 itself cannot tell", which is more useful than
@@ -84,7 +101,10 @@ name, so they are not filtered out on the assumption that they are built-ins.
 
 External type libraries are not read, so the types of standard VB controls
 (`CommandButton`, `Timer`) and of external COM objects resolve to nothing —
-the reference is recorded, the target is not in the graph. Conditional
+the reference is recorded, the target is not in the graph. A UserControl whose
+ActiveX project is indexed as source DOES link end to end, even when several
+projects define the same control name: the designer names the library, and
+that decides. Conditional
 compilation is not evaluated: every `#If` branch stays in the graph. `Friend`
 is treated as `Public`, which is correct within a single project.
 

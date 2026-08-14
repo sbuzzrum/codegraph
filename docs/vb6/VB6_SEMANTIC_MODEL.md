@@ -110,9 +110,13 @@ than widening the domain, and carries its own detail in `metadata`.
 
 **UNRESOLVED is a result, not a failure.** Where VB6 semantics cannot
 determine a target — a `Private` procedure seen from another module, a
-late-bound `Object` member, a `CreateObject` ProgID — the correct output is no
-edge at all. Fixtures 41, 43, 50, 51 and 55 exist to enforce that: they forbid
+`CreateObject` ProgID, a call to something that does not exist — the correct
+output is no edge at all. Fixtures 41, 50, 51 and 55 enforce that: they forbid
 the plausible-looking edge.
+
+The one refinement: when the MEMBER cannot be resolved but the OBJECT it was
+used on can, the reference binds to the object (below). That is not a guess —
+the object is a symbol we have — and it never names a member we did not find.
 
 ## Scope rules the resolver must honour
 
@@ -146,6 +150,39 @@ Everything else the resolver needs is derived from the graph rather than
 carried: that a reference is a `RaiseEvent` site is known because its target
 is a node marked `vb6:event`; that a call is late-bound is known because the
 variable's `returnType` is `Object`.
+
+## Member access on a type that is not in the graph
+
+Most of what VB6 code does is touch controls and COM objects — `txtName.Text`,
+`rs.Fields`, `MSComm1.Output` — whose types live in type libraries this engine
+does not read. The member cannot be resolved, and binding it to a same-named
+property found elsewhere in the project would be a fabrication.
+
+What IS known is the object. So the reference attaches to the qualifier and
+carries the member name:
+
+```jsonc
+kind: 'references',            // never `calls`: it lands on data
+metadata: {
+  vb6: 'member_on',
+  member: 'Text',              // the member that could not be resolved
+  qualifier: 'txtName',
+  scope: 'object'
+}
+```
+
+This answers "what touches this control", which is most of what a reader of a
+VB6 application wants, without ever claiming to have found the member. The
+same applies to late-bound calls (`Dim o As Object`): the edge points at `o`,
+never at a guessed target.
+
+## Control types name their library
+
+A designer writes a control's type as `Library.Control`
+(`MyEditOCX.MyEdit`), and that library is the name of the ActiveX project that
+builds the OCX. The library travels as the reference's qualifier, and when
+that project is indexed too it decides which of several same-named
+UserControls is meant — the client → OCX link of §12. Fixture 61.
 
 ## What the extractor deliberately does not emit
 

@@ -1,0 +1,15 @@
+{
+  "description": "a member of a type outside the graph still links the user to the object it is used on",
+  "status": "pass",
+  "expect": {
+    "edges": [
+      { "kind": "references", "from": "Apply", "to": "txtName", "metadata": { "member": "Text" } },
+      { "kind": "references", "from": "Apply", "to": "txtName", "metadata": { "member": "SetFocus" } }
+    ]
+  },
+  "forbid": {
+    "edges": [
+      { "kind": "calls", "from": "Apply", "to": "txtName" }
+    ]
+  }
+}

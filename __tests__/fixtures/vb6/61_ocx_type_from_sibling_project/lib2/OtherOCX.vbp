@@ -1,0 +1,3 @@
+Type=OleDll
+UserControl=MyEdit.ctl
+Name="OtherOCX"

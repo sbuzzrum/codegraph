@@ -112,6 +112,18 @@ export class Vb6Resolver {
     return map;
   }
 
+  /** True when `file` is part of a project whose NAME is `projectName`. */
+  private belongsToProjectNamed(file: string, projectName: string): boolean {
+    const owners = this.projectIndex().get(file);
+    if (!owners) return false;
+    const wanted = projectName.toLowerCase();
+    for (const id of owners) {
+      const project = this.queries.getNodeById(id);
+      if (project && project.name.toLowerCase() === wanted) return true;
+    }
+    return false;
+  }
+
   /**
    * True when both files belong to a common project, false when they provably
    * do not, null when membership is unknown for either — a file listed in no
@@ -131,7 +143,15 @@ export class Vb6Resolver {
    */
   resolve(ref: UnresolvedRef): ResolvedRef | null {
     const candidatesAll = this.lookup(ref.referenceName);
-    if (candidatesAll.length === 0) return null;
+    if (candidatesAll.length === 0) {
+      // No symbol of that name anywhere. For a QUALIFIED reference that is the
+      // normal case, not a dead end: `txtName.Text` names a member of a
+      // standard control, which is not in the graph — but `txtName` is, and
+      // the link to it is worth keeping (see linkToQualifier).
+      const onlyQualifier = qualifierOf(ref);
+      if (!onlyQualifier || ref.referenceKind === 'type_of') return null;
+      return this.linkToQualifier(ref, onlyQualifier, this.findData(onlyQualifier, ref.filePath));
+    }
 
     switch (ref.referenceKind) {
       // `.vbp`/`.vbg` membership: the target is a whole module/class/form.
@@ -148,8 +168,20 @@ export class Vb6Resolver {
       case 'implements':
       case 'type_of':
       case 'instantiates':
-      case 'returns':
-        return this.pick(ref, candidatesAll.filter((n) => TYPE_KINDS.has(n.kind)), { scope: 'type' });
+      case 'returns': {
+        const types = candidatesAll.filter((n) => TYPE_KINDS.has(n.kind));
+        // A control's type is written `Library.Control`, and that library is
+        // the ActiveX project that builds the OCX. When it is indexed too,
+        // it says which of several same-named UserControls is meant (§12).
+        const library = qualifierOf(ref);
+        if (library && types.length > 1) {
+          const owned = types.filter((n) => this.belongsToProjectNamed(n.filePath, library));
+          if (owned.length > 0) {
+            return this.pick(ref, owned, { scope: 'type', library }, 'qualified-name');
+          }
+        }
+        return this.pick(ref, types, { scope: 'type' });
+      }
 
       default:
         break;
@@ -180,15 +212,47 @@ export class Vb6Resolver {
     // that variable's declared type.
     const variable = this.findData(qualifier, ref.filePath);
     const typeName = variable?.returnType;
-    if (!typeName) return null;
-    if (LATE_BOUND_TYPES.has(typeName.toLowerCase())) return null; // late-bound: no static target
 
-    for (const type of this.lookup(typeName).filter((n) => CONTAINER_KINDS.has(n.kind))) {
-      const members = visible.filter((n) => n.filePath === type.filePath && n.id !== type.id);
-      const hit = this.pick(ref, members, { scope: 'type', qualifier }, 'instance-method');
-      if (hit) return hit;
+    if (typeName && !LATE_BOUND_TYPES.has(typeName.toLowerCase())) {
+      for (const type of this.lookup(typeName).filter((n) => CONTAINER_KINDS.has(n.kind))) {
+        const members = visible.filter((n) => n.filePath === type.filePath && n.id !== type.id);
+        const hit = this.pick(ref, members, { scope: 'type', qualifier }, 'instance-method');
+        if (hit) return hit;
+      }
     }
-    return null;
+
+    return this.linkToQualifier(ref, qualifier, variable);
+  }
+
+  /**
+   * The member could not be resolved — its type is a standard VB control, an
+   * external COM object, or late-bound. The OBJECT it was used on is in the
+   * graph, though, and losing that link too would throw away the one thing we
+   * do know.
+   *
+   * So the reference attaches to the qualifier, carrying the member name in
+   * `metadata.member`. It answers "what touches this control / this recordset",
+   * which on a VB6 codebase is most of what a reader wants, and it never
+   * pretends to have found the member: the edge points at the object, not at a
+   * same-named property picked from somewhere else in the project (§21).
+   *
+   * `createEdges` demotes a `calls` landing on data to `references`, so
+   * `obj.DoThing(1)` does not read as "calls obj".
+   */
+  private linkToQualifier(ref: UnresolvedRef, qualifier: string, data: Node | undefined): ResolvedRef | null {
+    const target =
+      data ??
+      // A `With` target or a qualifier declared elsewhere may still name a
+      // module/class/form of the project.
+      this.lookup(qualifier).find((n) => CONTAINER_KINDS.has(n.kind));
+    if (!target) return null;
+    return {
+      original: ref,
+      targetNodeId: target.id,
+      confidence: 0.5,
+      resolvedBy: 'instance-method',
+      metadata: { scope: 'object', vb6: 'member_on', member: ref.referenceName, qualifier },
+    };
   }
 
   /** An unqualified name: own container first, then global standard modules. */

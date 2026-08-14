@@ -1,5 +1,5 @@
 {
-  "description": "a call on an Object variable must not be bound to a same-named member of an unrelated class",
+  "description": "a call on an Object variable binds to the object, never to a same-named member of an unrelated class",
   "status": "pass",
   "forbid": {
     "edges": [
@@ -7,14 +7,24 @@
         "kind": "calls",
         "from": "Run",
         "to": "DoStuff"
+      },
+      {
+        "kind": "references",
+        "from": "Run",
+        "to": "DoStuff"
       }
     ]
   },
   "expect": {
-    "unresolved": [
+    "edges": [
       {
-        "name": "DoStuff",
-        "from": "Run"
+        "kind": "references",
+        "from": "Run",
+        "to": "o",
+        "metadata": {
+          "member": "DoStuff",
+          "vb6": "member_on"
+        }
       }
     ]
   }
