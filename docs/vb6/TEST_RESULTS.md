@@ -282,7 +282,9 @@ grammar. Both databases were compared directly.
 |---|---|---|
 | Files indexed | 2,003 | 2,163 (`.vbp`/`.vbg` included) |
 | Nodes | 51,897 | 172,762 |
-| Edges (non-containment) | 89,745 | 340,967 |
+| Edges (non-containment) | 89,745 | 347,889 |
+| Calls into the project's own procedures | 69,360 | 112,346 |
+| Edges marked as derived (`provenance`) | **0** | 16,645 |
 | `references` edges | **0** | 212,709 |
 | `type_of` edges | **0** | 8,985 |
 | Form controls | **0** | 28,855 |
@@ -296,6 +298,11 @@ Volume is the least interesting part. **Correctness** is the point:
 |---|---|---|
 | Calls to a `Private` procedure in another file | **4,693** | 102 |
 | Cross-file calls into a form's members | **31,990** | 1,739 |
+
+Upstream marks none of its edges: every one is presented as a parsed fact,
+including the 611 that call a VB6 keyword. This fork labels 16,645 as derived
+(event bindings, directory-proximity resolutions), so a reader can tell which
+edges to trust absolutely and which to check.
 
 Both residuals here are legitimate, checked one by one: the 102 are
 `WithEvents` bindings, where the handler is `Private` by convention and its
@@ -341,6 +348,12 @@ The 3% was worth chasing: it turned out `RaiseEvent Changed(Compute(1))` and
 `With Child()` dropped everything after the event name or the With target —
 those statements returned early instead of scanning their arguments. Fixed;
 fixture `67_args_of_raiseevent_and_with`.
+
+After all fixes the set is 1,603, and sampling what is left of that 3% shows
+it is not ours either. One example: `Call a.b().c().setColorBack(x)` written
+INSIDE a `Public Sub setColorBack` — upstream binds it to the enclosing
+procedure itself, inventing an infinite recursion; this fork binds it to the
+object the chain starts from.
 
 ## Not covered
 
