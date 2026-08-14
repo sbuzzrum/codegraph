@@ -3,7 +3,13 @@
 > Documento vivo. Fonte autoritativa dei requisiti: `PROMPT_CODEGRAPH_VB6_FORK_PERSONALE.md`
 > (nella dir padre del repo). Questo file traccia **piano**, **decisioni** e **stato**.
 
-Ultimo aggiornamento: 2026-08-13 — fase corrente: **0 (audit fatto, piano scritto, in attesa esecuzione)**
+Ultimo aggiornamento: 2026-08-14 — fase corrente: **2–3 in corso** (lingua `vb6`
+registrata e committata; extractor custom implementato per code/designer/progetto;
+**mancano** suite di conformità/test e l'intero resolver — Fase 4).
+
+Committato e pushato su `origin/main`:
+- `2d59953` — `docs(vb6): architecture audit, phased plan and implementation decisions`
+- `530b584` — `feat(vb6): register language and add custom extractors`
 
 ---
 
@@ -97,27 +103,31 @@ Regola d'oro (§21): in caso di ambiguità **preferire `unresolved`** a un edge 
 
 ## 3. Piano a fasi
 
-### Fase 1 — Audit & fondamenta *(parzialmente fatto: audit ✓)*
+### Fase 1 — Audit & fondamenta *(quasi completa)*
 - [x] Audit architettura extractor/registry/resolver/provenance/MCP.
-- [ ] `docs/vb6/IMPLEMENTATION_DECISIONS.md` (mapping ontologia, scelta grammar, scope model).
-- [ ] `docs/vb6/VB6_SEMANTIC_MODEL.md` (nodi/relazioni/provenance definitivi).
-- **Commit:** `docs(vb6): architecture audit and semantic model`
+- [x] `docs/vb6/IMPLEMENTATION_DECISIONS.md` (mapping ontologia, scelta grammar D1, scope model). Committato.
+- [ ] `docs/vb6/VB6_SEMANTIC_MODEL.md` (nodi/relazioni/provenance definitivi). **Ancora da scrivere.**
+- **Commit:** `docs(vb6): architecture audit and semantic model` → parzialmente fatto (`2d59953`, manca SEMANTIC_MODEL).
 
-### Fase 2 — Grammar & fixture di conformità
-- [ ] Registrare lingua `vb6` (types.ts + grammars.ts: wasm, estensioni `.bas/.cls/.frm/.ctl`, display name, liste).
+### Fase 2 — Grammar & fixture di conformità *(in corso)*
+- [x] Registrare lingua `vb6` (types.ts + grammars.ts: estensioni `.bas/.cls/.frm/.ctl/.vbp/.vbg`, display
+      name, liste supported/grammar-loaded; dispatch in `tree-sitter.ts`). **NB:** nessuna entry wasm (D1).
+      Committato in `530b584`.
 - [ ] Suite conformità §7: 50 mini-progetti in `__tests__/fixtures/vb6/NN_*/` con oracolo machine-readable
-      (`expected.json`: nodi+edge attesi). Test runner che confronta graph prodotto vs atteso.
-- [ ] Test grammar: verifica che il corpo codice `.bas/.cls` parsi senza errori con la grammar scelta.
-- **Commit:** `test(vb6): add conformance fixtures and oracle runner` + `feat(vb6): register language and grammar`
+      (`expected.json`: nodi+edge attesi). Test runner che confronta graph prodotto vs atteso. **0 fixture, 0 test oggi.**
+- [ ] ~~Test grammar~~ → **N/A** (nessuna grammar tree-sitter, D1); sostituito da: test unitari dell'extractor sui costrutti core.
+- **Commit:** `feat(vb6): register language and grammar` fatto (`530b584`); `test(vb6): add conformance fixtures and oracle runner` **da fare.**
 
-### Fase 3 — Extractor dichiarazioni & progetto
-- [ ] `src/extraction/languages/vb6.ts` (config `LanguageExtractor`): Sub/Function/Property/Event/Enum/Type/
-      Const/Variable, visibilità Public/Private/Friend/Static, return type.
-- [ ] Parser `.vbp` (§10): Form/Module/Class/UserControl/Designer/Object/Reference/Startup/name/type → nodi progetto + `contains`/`imports`.
-- [ ] Parser `.vbg` (§10): progetti inclusi + relazioni gruppo.
-- [ ] Extractor composito `.frm`/`.ctl` (§11–12): Form/UserControl + controlli (tipo, nome istanza, nesting,
-      control array + indice, OCX ref) dalla designer section; il corpo codice va all'extractor vb6.
-- **Commit:** `feat(vb6): extract declarations`, `feat(vb6): parse .vbp/.vbg project model`, `feat(vb6): parse form/usercontrol designer`
+### Fase 3 — Extractor dichiarazioni & progetto *(implementato, non ancora testato)*
+> Realizzato come extractor custom line-based in `src/extraction/vb6-extractor.ts` (non `languages/vb6.ts`), per D1.
+- [x] `Vb6Extractor`: Sub/Function/Property (Get/Let/Set)/Event/Enum/Type(UDT)/Const/Variable/Declare,
+      visibilità Public/Private/Friend/Static, return type; chiamate (`calls`), `references`, `RaiseEvent`,
+      member/implicit call e `As New` (`instantiates`) con hint `metadata.vb6` (raises_event/member_call/…).
+- [x] `Vb6ProjectExtractor` — `.vbp`/`.vbg`: nodo progetto + membership/reference.
+- [x] `Vb6FormExtractor` — `.frm`/`.ctl`: Form/UserControl + controlli (tipo, nome istanza, nesting,
+      control array `Index`, OCX ref) dalla designer section `Begin…End`; corpo codice delegato a `Vb6Extractor`.
+- [ ] **Validazione:** nessun test ancora esercita questi extractor; correttezza da confermare in Fase 2/5.
+- **Commit:** confluiti in `530b584` (`feat(vb6): register language and add custom extractors`).
 
 ### Fase 4 — Resolver, scope, eventi, COM
 - [ ] Scope resolution (§9): procedure/module/class/form/project scope, Public/Private/Friend/Static,
@@ -157,3 +167,8 @@ Regola d'oro (§21): in caso di ambiguità **preferire `unresolved`** a un edge 
 
 ## 5. Log decisioni & avanzamento
 - 2026-08-13: audit architettura completato; piano scritto; mapping ontologia proposto. In attesa di via libera per Fase 1 (doc semantico) → Fase 2.
+- 2026-08-14: lingua `vb6` registrata (types.ts/grammars.ts/tree-sitter.ts) ed extractor custom
+  implementato (`vb6-extractor.ts`: code + designer + progetto). Typecheck `tsc --noEmit` verde.
+  Committato in due unità logiche (`2d59953` docs, `530b584` feat) e **pushato su `origin/main`**.
+  **Prossimi passi:** (1) `VB6_SEMANTIC_MODEL.md`; (2) suite di conformità + test runner (Fase 2);
+  (3) resolver scope/eventi/COM (Fase 4). Nulla è ancora testato: gli extractor sono da validare.
