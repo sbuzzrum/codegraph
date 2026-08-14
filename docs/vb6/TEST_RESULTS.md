@@ -192,6 +192,27 @@ this old). It would recover 5,394 references: **1.7%** of the unresolved set,
 in exchange for a heuristic that can bind the wrong target. Not implemented —
 the trade is bad at that ratio.
 
+### Per-project vs whole-tree indexing
+
+Measured, because the expectation was wrong. Duplicate copies of a shared
+UserControl create ambiguity, so indexing one `.vbp` at a time looked like it
+should help. Three projects — 711, 45 and 13 files — were indexed both in the
+whole-tree index and in isolation:
+
+| Project | files | whole tree | isolated |
+|---|---|---|---|
+| large | 711 | **57.5%** | 57.4% |
+| medium | 45 | **27.0%** | 27.0% |
+| small (ActiveX client) | 13 | **66.4%** | 65.3% |
+
+Isolation changes nothing measurable and costs something real: the small
+project's resolved `type_of` edges fell from 31 to 5, because the UserControls
+it uses are built by a sibling `.vbp` that isolation excludes from the index.
+
+The project-scope filter already discards out-of-project candidates, so the
+whole tree gives project scope *and* the client → OCX link. Recommendation:
+index the whole tree.
+
 ### Event model at scale
 
 | | |

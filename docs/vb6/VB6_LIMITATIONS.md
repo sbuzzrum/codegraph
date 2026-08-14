@@ -113,9 +113,20 @@ Measured on a real 2,163-file codebase: 79.7% of source files were covered by
 target, so it is deliberately not implemented (§21 ranks unresolved above a
 false edge).
 
-**Consequence.** Index a project by its `.vbp`/`.vbg` rather than by a folder
-of loose files where you can, and expect weaker resolution for files that
-belong to no project.
+**Consequence.** Expect weaker resolution for files that belong to no project.
+
+**Index the whole tree, not one project at a time.** This was measured, because
+the opposite seemed likely: indexing a single `.vbp` in isolation was expected
+to remove the ambiguity that duplicate copies of a shared UserControl create.
+It does not. Three projects of different sizes were indexed both ways and the
+resolution rate was identical to within 0.1 point — the project-scope filter
+already discards out-of-project candidates — while isolation *loses* the types
+that live in sibling ActiveX projects: on one project, resolved `type_of`
+edges fell from 31 to 5 because the UserControls it uses are built by another
+`.vbp` in the tree.
+
+The whole tree gives project scope AND the client → OCX link. One project at a
+time gives only the first.
 
 ## Member access on external types resolves to the OBJECT, not the member
 

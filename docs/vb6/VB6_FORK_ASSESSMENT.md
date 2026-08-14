@@ -141,8 +141,10 @@ of invented edges.
 **Do not expect:** members of standard VB controls or COM objects to exist as
 symbols (a reference binds to the object, carrying the member name),
 conditional-compilation branches to be filtered, or default properties to be
-applied. And index by `.vbp`/`.vbg` where you can — files that belong to no
-indexed project resolve less well, by design.
+applied. Index the WHOLE tree rather than one `.vbp` at a time — measured:
+isolation does not improve resolution and loses the types that sibling ActiveX
+projects provide. Files belonging to no indexed project resolve less well, by
+design.
 
 **Known open items**, none of them blocking, all in `OPEN_QUESTIONS.md`.
 Shipping the standard VB6 control types as built-in nodes was the highest-value

@@ -291,6 +291,13 @@ emersi altri due difetti, entrambi con fixture:
 Un ripiego per prossimità di directory (per i file fuori da ogni `.vbp`) recupererebbe l'1,7% al prezzo
 di un'euristica che può sbagliare: **scartato** (§21).
 
+**Indicizzare per singolo `.vbp` invece che l'albero intero: misurato e scartato.** L'ipotesi era che
+isolare un progetto eliminasse le ambiguità create dalle copie duplicate di UserControl condivisi.
+Tre progetti (711, 45 e 13 file) indicizzati in entrambi i modi: tasso identico a meno di 0,1 punti —
+il filtro di scope già scarta i candidati fuori progetto — e l'isolamento **perde** i tipi forniti dai
+progetti ActiveX fratelli (su un progetto piccolo, `type_of` risolti da 31 a 5). Raccomandazione
+corretta: **indicizzare l'albero intero**.
+
 **Eventi su scala reale:** 12.229 binding sintetizzati; il 38% dei metodi con nome `X_Y` resta non
 legato — è il gate di precisione che rifiuta di indovinare dove il produttore non esiste nel file.
 
